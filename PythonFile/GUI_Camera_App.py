@@ -107,6 +107,7 @@ class CameraApp(QMainWindow):
         self.hand_landmarker = None
         self.hand_start_time = None
         self.yolo_model = None
+        self.yolo_model_path = None
         self.capture_dir = Path("captures")
         self.recording_dir = Path("recordings")
         self.capture_dir.mkdir(exist_ok=True)
@@ -133,6 +134,9 @@ class CameraApp(QMainWindow):
 
         self.color_combo = QComboBox()
         self.color_combo.addItems(["semua", "merah", "hijau", "biru"])
+
+        self.yolo_model_combo = QComboBox()
+        self.refresh_yolo_model_combo()
 
         self.yolo_object_combo = QComboBox()
         self.yolo_object_combo.addItem("semua")
@@ -164,6 +168,7 @@ class CameraApp(QMainWindow):
         self.capture_button.clicked.connect(self.save_capture_image)
         self.record_button.clicked.connect(self.toggle_recording)
         self.level_combo.currentTextChanged.connect(self.update_level_controls)
+        self.yolo_model_combo.currentTextChanged.connect(self.on_yolo_model_changed)
 
         camera_group = QGroupBox("Camera Settings")
         camera_layout = QGridLayout()
@@ -178,15 +183,18 @@ class CameraApp(QMainWindow):
         self.detection_hint_label = QLabel("Tidak ada pengaturan tambahan untuk level ini.")
         self.detection_hint_label.setObjectName("hintLabel")
         self.color_label = QLabel("Warna:")
+        self.yolo_model_label = QLabel("Model YOLO:")
         self.yolo_object_label = QLabel("Objek YOLO:")
         self.yolo_confidence_label = QLabel("Confidence YOLO:")
         detection_layout.addWidget(self.detection_hint_label, 0, 0, 1, 4)
         detection_layout.addWidget(self.color_label, 1, 0)
         detection_layout.addWidget(self.color_combo, 1, 1)
-        detection_layout.addWidget(self.yolo_object_label, 1, 0)
-        detection_layout.addWidget(self.yolo_object_combo, 1, 1)
-        detection_layout.addWidget(self.yolo_confidence_label, 1, 2)
-        detection_layout.addWidget(self.yolo_confidence_combo, 1, 3)
+        detection_layout.addWidget(self.yolo_model_label, 1, 0)
+        detection_layout.addWidget(self.yolo_model_combo, 1, 1)
+        detection_layout.addWidget(self.yolo_object_label, 2, 0)
+        detection_layout.addWidget(self.yolo_object_combo, 2, 1)
+        detection_layout.addWidget(self.yolo_confidence_label, 2, 2)
+        detection_layout.addWidget(self.yolo_confidence_combo, 2, 3)
         detection_group.setLayout(detection_layout)
 
         action_group = QGroupBox("Actions")
@@ -213,6 +221,7 @@ class CameraApp(QMainWindow):
         self.setCentralWidget(container)
         self.apply_modern_style()
         self.update_level_controls()
+        self.load_selected_yolo_model(show_errors=False)
 
     def apply_modern_style(self):
         self.setStyleSheet(
@@ -291,15 +300,55 @@ class CameraApp(QMainWindow):
             """
         )
 
+    def refresh_yolo_model_combo(self):
+        MODEL_DIR.mkdir(exist_ok=True)
+        current_text = self.yolo_model_combo.currentText() if hasattr(self, "yolo_model_combo") else ""
+        model_names = sorted(path.name for path in MODEL_DIR.glob("*.pt"))
+
+        if YOLO_MODEL_NAME not in model_names:
+            model_names.insert(0, YOLO_MODEL_NAME)
+
+        self.yolo_model_combo.blockSignals(True)
+        self.yolo_model_combo.clear()
+        self.yolo_model_combo.addItems(model_names)
+        selected_index = self.yolo_model_combo.findText(current_text)
+
+        if selected_index < 0:
+            selected_index = self.yolo_model_combo.findText(YOLO_MODEL_NAME)
+
+        if selected_index >= 0:
+            self.yolo_model_combo.setCurrentIndex(selected_index)
+
+        self.yolo_model_combo.blockSignals(False)
+
+    def get_selected_yolo_model_path(self):
+        selected_model = self.yolo_model_combo.currentText().strip()
+
+        if not selected_model:
+            selected_model = YOLO_MODEL_NAME
+
+        return MODEL_DIR / selected_model
+
+    def on_yolo_model_changed(self):
+        if self.cap is not None:
+            return
+
+        self.load_selected_yolo_model(show_errors=True)
+        self.update_level_controls()
+
     def update_level_controls(self):
         selected_level = self.level_combo.currentText()
         is_level_4 = selected_level.startswith("Level 4")
         is_level_7 = selected_level.startswith("Level 7")
+        is_camera_stopped = self.cap is None
 
         self.detection_hint_label.setVisible(not is_level_4 and not is_level_7)
         self.color_label.setVisible(is_level_4)
         self.color_combo.setVisible(is_level_4)
         self.color_combo.setEnabled(is_level_4)
+        self.yolo_model_label.setVisible(is_level_7)
+        self.yolo_model_combo.setVisible(is_level_7)
+        self.yolo_model_combo.setEnabled(is_level_7 and is_camera_stopped)
         self.yolo_object_label.setVisible(is_level_7)
         self.yolo_object_combo.setVisible(is_level_7)
         self.yolo_object_combo.setEnabled(is_level_7)
@@ -337,6 +386,7 @@ class CameraApp(QMainWindow):
         self.record_button.setEnabled(True)
         self.level_combo.setEnabled(False)
         self.camera_combo.setEnabled(False)
+        self.update_level_controls()
         self.status_label.setText(f"Status: Kamera aktif | {selected_level}")
 
     def stop_camera(self):
@@ -599,19 +649,18 @@ class CameraApp(QMainWindow):
     def migrate_yolo_model_to_models_dir(self):
         MODEL_DIR.mkdir(exist_ok=True)
 
-        if YOLO_MODEL_PATH.exists():
-            return
-
-        legacy_paths = [
-            BASE_DIR / YOLO_MODEL_NAME,
-            Path.cwd() / YOLO_MODEL_NAME,
-            Path(__file__).resolve().parent / YOLO_MODEL_NAME,
+        legacy_dirs = [
+            BASE_DIR,
+            Path.cwd(),
+            Path(__file__).resolve().parent,
         ]
 
-        for legacy_path in legacy_paths:
-            if legacy_path.exists() and legacy_path.resolve() != YOLO_MODEL_PATH.resolve():
-                legacy_path.replace(YOLO_MODEL_PATH)
-                return
+        for legacy_dir in legacy_dirs:
+            for legacy_path in legacy_dir.glob("*.pt"):
+                target_path = MODEL_DIR / legacy_path.name
+
+                if legacy_path.resolve() != target_path.resolve() and not target_path.exists():
+                    legacy_path.replace(target_path)
 
     def count_raised_fingers(self, hand_landmarks, hand_label):
         raised_fingers = 0
@@ -706,35 +755,48 @@ class CameraApp(QMainWindow):
         return frame
 
     def setup_yolo_model(self):
-        if self.yolo_model is not None:
+        return self.load_selected_yolo_model(show_errors=True)
+
+    def load_selected_yolo_model(self, show_errors):
+        selected_model_path = self.get_selected_yolo_model_path()
+
+        if self.yolo_model is not None and self.yolo_model_path == selected_model_path:
             return True
 
         if not ULTRALYTICS_AVAILABLE:
-            QMessageBox.warning(
-                self,
-                "Ultralytics belum tersedia",
-                "Install Ultralytics terlebih dahulu:\n\npip install ultralytics",
-            )
+            if show_errors:
+                QMessageBox.warning(
+                    self,
+                    "Ultralytics belum tersedia",
+                    "Install Ultralytics terlebih dahulu:\n\npip install ultralytics",
+                )
             return False
 
-        self.status_label.setText(f"Status: Memuat model YOLO {YOLO_MODEL_NAME}...")
+        self.status_label.setText(f"Status: Memuat model YOLO {selected_model_path.name}...")
         QApplication.processEvents()
         self.migrate_yolo_model_to_models_dir()
+        selected_model_path = self.get_selected_yolo_model_path()
 
         try:
-            model_source = YOLO_MODEL_PATH if YOLO_MODEL_PATH.exists() else YOLO_MODEL_NAME
+            model_source = selected_model_path if selected_model_path.exists() else selected_model_path.name
             self.yolo_model = YOLO(str(model_source))
+            self.yolo_model_path = selected_model_path
             self.migrate_yolo_model_to_models_dir()
+            self.refresh_yolo_model_combo()
         except Exception as error:
-            QMessageBox.warning(
-                self,
-                "YOLO gagal dimuat",
-                f"Model YOLO gagal dimuat:\n{error}",
-            )
+            if show_errors:
+                QMessageBox.warning(
+                    self,
+                    "YOLO gagal dimuat",
+                    f"Model YOLO gagal dimuat:\n{error}",
+                )
+
             self.yolo_model = None
+            self.yolo_model_path = None
             return False
 
         self.populate_yolo_object_combo()
+        self.status_label.setText(f"Status: Model YOLO aktif: {selected_model_path.name}")
         return True
 
     def populate_yolo_object_combo(self):
