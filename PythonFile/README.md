@@ -141,6 +141,46 @@ captures/color_detection_20260512_092900.jpg
 
 Catatan: hasil deteksi warna sangat dipengaruhi pencahayaan kamera. Jika warna tidak terdeteksi dengan baik, nilai HSV di `COLOR_RANGES` bisa disesuaikan.
 
+## Level_6_Deteksi_Tangan_Jari.py
+
+File ini adalah latihan Level 6 untuk mendeteksi tangan dan menghitung jumlah jari yang terangkat.
+
+Level ini memakai library tambahan bernama MediaPipe. Jika belum terinstall, jalankan:
+
+```bash
+pip install mediapipe
+```
+
+Pada MediaPipe versi baru, script memakai API `mediapipe.tasks`. Saat pertama kali dijalankan, script akan mengunduh model `hand_landmarker.task` ke folder `models`.
+
+Fitur:
+
+- Menampilkan live preview dari kamera.
+- Mendeteksi maksimal 2 tangan.
+- Menggambar titik dan garis landmark tangan.
+- Menghitung jumlah jari yang terangkat pada setiap tangan.
+- Menampilkan total tangan dan total jari di layar.
+- Menyimpan hasil tampilan sebagai foto.
+
+Tombol:
+
+- `s` untuk menyimpan foto.
+- `q` untuk keluar.
+
+Cara menjalankan:
+
+```bash
+python PythonFile/Level_6_Deteksi_Tangan_Jari.py
+```
+
+Output foto akan tersimpan seperti ini:
+
+```text
+captures/hand_detection_20260512_093200.jpg
+```
+
+Catatan: hasil hitung jari paling baik jika telapak tangan menghadap kamera dan jari tidak saling menutup.
+
 ## Simple_Cam.py
 
 File ini adalah versi gabungan dari latihan sebelumnya.
@@ -151,7 +191,7 @@ Fitur di dalamnya:
 - Rekam video.
 - Deteksi gerakan.
 
-File ini tetap bisa dipakai, tetapi untuk belajar bertahap lebih mudah menggunakan file Level 1, Level 2, Level 3, dan Level 4.
+File ini tetap bisa dipakai, tetapi untuk belajar bertahap lebih mudah menggunakan file Level 1, Level 2, Level 3, Level 4, dan Level 6.
 
 ## Catatan Penting
 
