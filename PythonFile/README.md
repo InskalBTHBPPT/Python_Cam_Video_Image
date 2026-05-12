@@ -300,6 +300,7 @@ Tahap 7 menambahkan:
 - Dropdown `Confidence YOLO` untuk mengatur ambang confidence.
 - Foto dan video yang disimpan ikut memakai tampilan hasil deteksi objek.
 - Kontrol khusus Level 4 dan Level 7 otomatis aktif hanya saat level terkait dipilih.
+- Layout kontrol GUI dikelompokkan menjadi `Camera Settings`, `Detection Settings`, dan `Actions`.
 
 Install Ultralytics jika belum tersedia:
 

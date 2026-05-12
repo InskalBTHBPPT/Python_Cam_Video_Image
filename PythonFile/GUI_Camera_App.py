@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -156,28 +157,37 @@ class CameraApp(QMainWindow):
         self.record_button.clicked.connect(self.toggle_recording)
         self.level_combo.currentTextChanged.connect(self.update_level_controls)
 
-        controls_layout = QGridLayout()
-        controls_layout.addWidget(QLabel("Pilih Level:"), 0, 0)
-        controls_layout.addWidget(self.level_combo, 0, 1)
-        controls_layout.addWidget(QLabel("Camera Index:"), 0, 2)
-        controls_layout.addWidget(self.camera_combo, 0, 3)
-        controls_layout.addWidget(QLabel("Warna:"), 1, 0)
-        controls_layout.addWidget(self.color_combo, 1, 1)
-        controls_layout.addWidget(QLabel("Objek YOLO:"), 1, 2)
-        controls_layout.addWidget(self.yolo_object_combo, 1, 3)
-        controls_layout.addWidget(QLabel("Confidence YOLO:"), 2, 0)
-        controls_layout.addWidget(self.yolo_confidence_combo, 2, 1)
+        camera_group = QGroupBox("Camera Settings")
+        camera_layout = QGridLayout()
+        camera_layout.addWidget(QLabel("Pilih Level:"), 0, 0)
+        camera_layout.addWidget(self.level_combo, 0, 1)
+        camera_layout.addWidget(QLabel("Camera Index:"), 0, 2)
+        camera_layout.addWidget(self.camera_combo, 0, 3)
+        camera_group.setLayout(camera_layout)
 
+        detection_group = QGroupBox("Detection Settings")
+        detection_layout = QGridLayout()
+        detection_layout.addWidget(QLabel("Warna:"), 0, 0)
+        detection_layout.addWidget(self.color_combo, 0, 1)
+        detection_layout.addWidget(QLabel("Objek YOLO:"), 0, 2)
+        detection_layout.addWidget(self.yolo_object_combo, 0, 3)
+        detection_layout.addWidget(QLabel("Confidence YOLO:"), 1, 2)
+        detection_layout.addWidget(self.yolo_confidence_combo, 1, 3)
+        detection_group.setLayout(detection_layout)
+
+        action_group = QGroupBox("Actions")
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.stop_button)
         button_layout.addWidget(self.capture_button)
         button_layout.addWidget(self.record_button)
         button_layout.addStretch()
+        action_group.setLayout(button_layout)
 
         main_layout = QVBoxLayout()
-        main_layout.addLayout(controls_layout)
-        main_layout.addLayout(button_layout)
+        main_layout.addWidget(camera_group)
+        main_layout.addWidget(detection_group)
+        main_layout.addWidget(action_group)
         main_layout.addWidget(self.preview_label)
         main_layout.addWidget(self.status_label)
 
