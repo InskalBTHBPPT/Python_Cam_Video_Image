@@ -23,7 +23,7 @@ class CameraApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Python Camera GUI - Tahap 3")
+        self.setWindowTitle("Python Camera GUI - Tahap 4")
         self.resize(960, 640)
 
         self.cap = None
@@ -31,6 +31,8 @@ class CameraApp(QMainWindow):
         self.video_writer = None
         self.current_recording_path = None
         self.is_recording = False
+        self.previous_gray = None
+        self.min_motion_area = 1000
         self.capture_dir = Path("captures")
         self.recording_dir = Path("recordings")
         self.capture_dir.mkdir(exist_ok=True)
@@ -113,6 +115,7 @@ class CameraApp(QMainWindow):
             self.status_label.setText(f"Status: Kamera index {camera_index} tidak terdeteksi")
             return
 
+        self.previous_gray = None
         self.timer.start(30)
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
@@ -135,6 +138,7 @@ class CameraApp(QMainWindow):
         self.preview_label.clear()
         self.preview_label.setText("Preview kamera akan tampil di sini")
         self.last_frame = None
+        self.previous_gray = None
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.capture_button.setEnabled(False)
@@ -210,6 +214,57 @@ class CameraApp(QMainWindow):
             if show_notification:
                 QMessageBox.information(self, "Video tersimpan", f"File disimpan di:\n{saved_path}")
 
+    def apply_motion_detection(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (21, 21), 0)
+        motion_detected = False
+
+        if self.previous_gray is None:
+            self.previous_gray = gray
+            return frame
+
+        frame_delta = cv2.absdiff(self.previous_gray, gray)
+        threshold = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
+        threshold = cv2.dilate(threshold, None, iterations=2)
+
+        contours, _ = cv2.findContours(
+            threshold,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE,
+        )
+
+        for contour in contours:
+            if cv2.contourArea(contour) < self.min_motion_area:
+                continue
+
+            motion_detected = True
+            x, y, width, height = cv2.boundingRect(contour)
+            cv2.rectangle(frame, (x, y), (x + width, y + height), (0, 255, 0), 2)
+
+        self.previous_gray = gray
+
+        if motion_detected:
+            cv2.putText(
+                frame,
+                "MOTION DETECTED",
+                (20, 80),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 255, 255),
+                2,
+            )
+
+        cv2.putText(
+            frame,
+            "MOTION ON",
+            (20, frame.shape[0] - 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            2,
+        )
+        return frame
+
     def update_frame(self):
         if self.cap is None:
             return
@@ -222,9 +277,15 @@ class CameraApp(QMainWindow):
             return
 
         frame = cv2.flip(frame, 1)
-        self.last_frame = frame.copy()
-
         display_frame = frame.copy()
+        selected_level = self.level_combo.currentText()
+
+        if selected_level.startswith("Level 3"):
+            display_frame = self.apply_motion_detection(display_frame)
+        else:
+            self.previous_gray = None
+
+        self.last_frame = display_frame.copy()
 
         if self.is_recording and self.video_writer is not None:
             cv2.putText(

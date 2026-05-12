@@ -270,6 +270,13 @@ Tahap 3 menambahkan:
 - Menampilkan indikator `REC` saat sedang merekam.
 - Menampilkan notifikasi berisi path file video setelah rekaman selesai.
 
+Tahap 4 menambahkan:
+
+- Integrasi dropdown `Level 3 - Deteksi Gerakan`.
+- Area bergerak diberi kotak hijau.
+- Teks `MOTION DETECTED` muncul saat ada gerakan.
+- Foto dan video yang disimpan ikut memakai tampilan hasil motion detection.
+
 Install PySide6 jika belum tersedia:
 
 ```bash
@@ -282,7 +289,7 @@ Cara menjalankan:
 python PythonFile/GUI_Camera_App.py
 ```
 
-Catatan: pada Tahap 3, dropdown level masih dipakai sebagai pilihan tampilan/status. Fitur deteksi per level akan ditambahkan bertahap setelah record video di GUI sudah OK.
+Catatan: pada Tahap 4, dropdown `Level 3 - Deteksi Gerakan` sudah aktif. Level lain sementara masih memakai preview biasa.
 
 ## Simple_Cam.py
 
