@@ -23,13 +23,18 @@ class CameraApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Python Camera GUI - Tahap 1")
+        self.setWindowTitle("Python Camera GUI - Tahap 3")
         self.resize(960, 640)
 
         self.cap = None
         self.last_frame = None
+        self.video_writer = None
+        self.current_recording_path = None
+        self.is_recording = False
         self.capture_dir = Path("captures")
+        self.recording_dir = Path("recordings")
         self.capture_dir.mkdir(exist_ok=True)
+        self.recording_dir.mkdir(exist_ok=True)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_frame)
@@ -53,8 +58,10 @@ class CameraApp(QMainWindow):
         self.start_button = QPushButton("Start Camera")
         self.stop_button = QPushButton("Stop Camera")
         self.capture_button = QPushButton("Save Capture Image")
+        self.record_button = QPushButton("Start Record")
         self.stop_button.setEnabled(False)
         self.capture_button.setEnabled(False)
+        self.record_button.setEnabled(False)
 
         self.status_label = QLabel("Status: Kamera belum aktif")
         self.status_label.setAlignment(Qt.AlignLeft)
@@ -69,6 +76,7 @@ class CameraApp(QMainWindow):
         self.start_button.clicked.connect(self.start_camera)
         self.stop_button.clicked.connect(self.stop_camera)
         self.capture_button.clicked.connect(self.save_capture_image)
+        self.record_button.clicked.connect(self.toggle_recording)
 
         controls_layout = QGridLayout()
         controls_layout.addWidget(QLabel("Pilih Level:"), 0, 0)
@@ -80,6 +88,7 @@ class CameraApp(QMainWindow):
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.stop_button)
         button_layout.addWidget(self.capture_button)
+        button_layout.addWidget(self.record_button)
         button_layout.addStretch()
 
         main_layout = QVBoxLayout()
@@ -108,11 +117,15 @@ class CameraApp(QMainWindow):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.capture_button.setEnabled(True)
+        self.record_button.setEnabled(True)
         self.level_combo.setEnabled(False)
         self.camera_combo.setEnabled(False)
         self.status_label.setText(f"Status: Kamera aktif | {selected_level}")
 
     def stop_camera(self):
+        if self.is_recording:
+            self.stop_recording(show_notification=True)
+
         self.timer.stop()
 
         if self.cap is not None:
@@ -125,6 +138,8 @@ class CameraApp(QMainWindow):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.capture_button.setEnabled(False)
+        self.record_button.setEnabled(False)
+        self.record_button.setText("Start Record")
         self.level_combo.setEnabled(True)
         self.camera_combo.setEnabled(True)
         self.status_label.setText("Status: Kamera berhenti")
@@ -141,6 +156,60 @@ class CameraApp(QMainWindow):
         self.status_label.setText(f"Status: Foto tersimpan di {saved_path}")
         QMessageBox.information(self, "Foto tersimpan", f"File disimpan di:\n{saved_path}")
 
+    def toggle_recording(self):
+        if self.is_recording:
+            self.stop_recording(show_notification=True)
+        else:
+            self.start_recording()
+
+    def start_recording(self):
+        if self.cap is None:
+            QMessageBox.warning(self, "Record gagal", "Kamera belum aktif.")
+            return
+
+        frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = self.cap.get(cv2.CAP_PROP_FPS)
+
+        if fps == 0:
+            fps = 20.0
+
+        filename = self.recording_dir / f"gui_recording_{datetime.now().strftime('%Y%m%d_%H%M%S')}.avi"
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        self.video_writer = cv2.VideoWriter(
+            str(filename),
+            fourcc,
+            fps,
+            (frame_width, frame_height),
+        )
+
+        if not self.video_writer.isOpened():
+            self.video_writer.release()
+            self.video_writer = None
+            QMessageBox.warning(self, "Record gagal", "Video writer tidak bisa dibuka.")
+            return
+
+        self.current_recording_path = filename.resolve()
+        self.is_recording = True
+        self.record_button.setText("Stop Record")
+        self.status_label.setText(f"Status: Sedang merekam ke {self.current_recording_path}")
+
+    def stop_recording(self, show_notification):
+        if self.video_writer is not None:
+            self.video_writer.release()
+            self.video_writer = None
+
+        saved_path = self.current_recording_path
+        self.current_recording_path = None
+        self.is_recording = False
+        self.record_button.setText("Start Record")
+
+        if saved_path is not None:
+            self.status_label.setText(f"Status: Video tersimpan di {saved_path}")
+
+            if show_notification:
+                QMessageBox.information(self, "Video tersimpan", f"File disimpan di:\n{saved_path}")
+
     def update_frame(self):
         if self.cap is None:
             return
@@ -154,7 +223,22 @@ class CameraApp(QMainWindow):
 
         frame = cv2.flip(frame, 1)
         self.last_frame = frame.copy()
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        display_frame = frame.copy()
+
+        if self.is_recording and self.video_writer is not None:
+            cv2.putText(
+                display_frame,
+                "REC",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+            )
+            self.video_writer.write(display_frame)
+
+        rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         height, width, channel = rgb_frame.shape
         bytes_per_line = channel * width
 

@@ -262,6 +262,14 @@ Tahap 2 menambahkan:
 - Menyimpan frame kamera terakhir ke folder `captures`.
 - Menampilkan notifikasi berisi path file foto yang disimpan.
 
+Tahap 3 menambahkan:
+
+- Tombol `Start Record`.
+- Tombol `Stop Record`.
+- Menyimpan video ke folder `recordings`.
+- Menampilkan indikator `REC` saat sedang merekam.
+- Menampilkan notifikasi berisi path file video setelah rekaman selesai.
+
 Install PySide6 jika belum tersedia:
 
 ```bash
@@ -274,7 +282,7 @@ Cara menjalankan:
 python PythonFile/GUI_Camera_App.py
 ```
 
-Catatan: pada Tahap 2, dropdown level masih dipakai sebagai pilihan tampilan/status. Fitur record dan deteksi per level akan ditambahkan bertahap setelah capture image di GUI sudah OK.
+Catatan: pada Tahap 3, dropdown level masih dipakai sebagai pilihan tampilan/status. Fitur deteksi per level akan ditambahkan bertahap setelah record video di GUI sudah OK.
 
 ## Simple_Cam.py
 
