@@ -191,7 +191,30 @@ Level ini memakai library tambahan bernama Ultralytics. Jika belum terinstall, j
 pip install ultralytics
 ```
 
-Script ini memakai model pretrained `yolo11n.pt`. Model tersebut sudah dilatih untuk mengenali objek umum, misalnya orang, botol, kursi, laptop, kendaraan, dan objek lain dari dataset COCO. Saat pertama kali dijalankan, model akan diunduh otomatis.
+Script ini memakai model pretrained `yolo11n.pt`. Model tersebut sudah dilatih untuk mengenali objek umum dari dataset COCO. Saat pertama kali dijalankan, model akan diunduh otomatis.
+
+Contoh objek yang bisa dideteksi:
+
+- `person`
+- `bicycle`
+- `car`
+- `motorcycle`
+- `bus`
+- `truck`
+- `traffic light`
+- `backpack`
+- `umbrella`
+- `bottle`
+- `cup`
+- `chair`
+- `couch`
+- `laptop`
+- `mouse`
+- `keyboard`
+- `cell phone`
+- `book`
+
+Daftar lengkap class COCO yang dipakai YOLO bisa dilihat di dokumentasi Ultralytics: [COCO Dataset](https://docs.ultralytics.com/datasets/detect/coco/).
 
 Fitur:
 
@@ -204,6 +227,7 @@ Fitur:
 Tombol:
 
 - `s` untuk menyimpan foto.
+- `l` untuk menampilkan daftar objek yang bisa dideteksi di terminal.
 - `q` untuk keluar.
 
 Cara menjalankan:

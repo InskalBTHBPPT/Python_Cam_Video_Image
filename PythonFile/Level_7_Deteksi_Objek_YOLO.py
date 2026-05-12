@@ -16,6 +16,17 @@ CAMERA_INDEX = 1  # 0 untuk kamera internal, 1 untuk kamera eksternal
 MODEL_NAME = "yolo11n.pt"
 CONFIDENCE_THRESHOLD = 0.5
 
+
+def print_detectable_objects(model):
+    object_names = [model.names[index] for index in sorted(model.names)]
+    print("\nDaftar objek yang bisa dideteksi model ini:")
+
+    for index, object_name in enumerate(object_names, start=1):
+        print(f"{index:02d}. {object_name}")
+
+    print()
+
+
 cap = cv2.VideoCapture(CAMERA_INDEX)
 capture_dir = Path("captures")
 capture_dir.mkdir(exist_ok=True)
@@ -27,6 +38,7 @@ if not cap.isOpened():
 print("Level 7: Deteksi objek dengan YOLO")
 print(f"Model: {MODEL_NAME}")
 print("Tekan 's' untuk simpan foto")
+print("Tekan 'l' untuk lihat daftar objek yang bisa dideteksi")
 print("Tekan 'q' untuk keluar")
 print("Catatan: pertama kali dijalankan, model YOLO akan diunduh otomatis.")
 
@@ -69,6 +81,9 @@ while True:
         filename = capture_dir / f"object_detection_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         cv2.imwrite(str(filename), annotated_frame)
         print(f"Foto tersimpan: {filename}")
+
+    if key == ord("l"):
+        print_detectable_objects(model)
 
     if key == ord("q"):
         break
