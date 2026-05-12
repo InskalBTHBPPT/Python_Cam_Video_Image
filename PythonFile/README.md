@@ -277,6 +277,13 @@ Tahap 4 menambahkan:
 - Teks `MOTION DETECTED` muncul saat ada gerakan.
 - Foto dan video yang disimpan ikut memakai tampilan hasil motion detection.
 
+Tahap 5 menambahkan:
+
+- Integrasi dropdown `Level 4 - Deteksi Warna`.
+- Dropdown pilihan warna `semua`, `merah`, `hijau`, dan `biru`.
+- Benda berwarna diberi kotak sesuai warna deteksi.
+- Foto dan video yang disimpan ikut memakai tampilan hasil deteksi warna.
+
 Install PySide6 jika belum tersedia:
 
 ```bash
@@ -289,7 +296,7 @@ Cara menjalankan:
 python PythonFile/GUI_Camera_App.py
 ```
 
-Catatan: pada Tahap 4, dropdown `Level 3 - Deteksi Gerakan` sudah aktif. Level lain sementara masih memakai preview biasa.
+Catatan: pada Tahap 5, dropdown `Level 3 - Deteksi Gerakan` dan `Level 4 - Deteksi Warna` sudah aktif. Level lain sementara masih memakai preview biasa.
 
 ## Simple_Cam.py
 

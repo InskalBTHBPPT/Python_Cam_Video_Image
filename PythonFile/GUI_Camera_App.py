@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 
 import cv2
+import numpy as np
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
@@ -18,12 +19,32 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+MIN_COLOR_AREA = 1200
+COLOR_RANGES = {
+    "merah": [
+        (np.array([0, 120, 70]), np.array([10, 255, 255])),
+        (np.array([170, 120, 70]), np.array([180, 255, 255])),
+    ],
+    "hijau": [
+        (np.array([40, 70, 70]), np.array([85, 255, 255])),
+    ],
+    "biru": [
+        (np.array([90, 70, 70]), np.array([130, 255, 255])),
+    ],
+}
+
+BOX_COLORS = {
+    "merah": (0, 0, 255),
+    "hijau": (0, 255, 0),
+    "biru": (255, 0, 0),
+}
+
 
 class CameraApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Python Camera GUI - Tahap 4")
+        self.setWindowTitle("Python Camera GUI - Tahap 5")
         self.resize(960, 640)
 
         self.cap = None
@@ -57,6 +78,9 @@ class CameraApp(QMainWindow):
         self.camera_combo.addItems(["0", "1", "2", "3"])
         self.camera_combo.setCurrentText("1")
 
+        self.color_combo = QComboBox()
+        self.color_combo.addItems(["semua", "merah", "hijau", "biru"])
+
         self.start_button = QPushButton("Start Camera")
         self.stop_button = QPushButton("Stop Camera")
         self.capture_button = QPushButton("Save Capture Image")
@@ -85,6 +109,8 @@ class CameraApp(QMainWindow):
         controls_layout.addWidget(self.level_combo, 0, 1)
         controls_layout.addWidget(QLabel("Camera Index:"), 0, 2)
         controls_layout.addWidget(self.camera_combo, 0, 3)
+        controls_layout.addWidget(QLabel("Warna:"), 1, 0)
+        controls_layout.addWidget(self.color_combo, 1, 1)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.start_button)
@@ -265,6 +291,65 @@ class CameraApp(QMainWindow):
         )
         return frame
 
+    def build_color_mask(self, hsv_frame, color_name):
+        mask = None
+
+        for lower_color, upper_color in COLOR_RANGES[color_name]:
+            current_mask = cv2.inRange(hsv_frame, lower_color, upper_color)
+
+            if mask is None:
+                mask = current_mask
+            else:
+                mask = cv2.bitwise_or(mask, current_mask)
+
+        mask = cv2.erode(mask, None, iterations=1)
+        mask = cv2.dilate(mask, None, iterations=2)
+        return mask
+
+    def apply_color_detection(self, frame):
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        selected_color = self.color_combo.currentText()
+        colors_to_detect = COLOR_RANGES.keys()
+
+        if selected_color != "semua":
+            colors_to_detect = [selected_color]
+
+        for color_name in colors_to_detect:
+            mask = self.build_color_mask(hsv, color_name)
+            contours, _ = cv2.findContours(
+                mask,
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+
+            for contour in contours:
+                if cv2.contourArea(contour) < MIN_COLOR_AREA:
+                    continue
+
+                x, y, width, height = cv2.boundingRect(contour)
+                box_color = BOX_COLORS[color_name]
+                cv2.rectangle(frame, (x, y), (x + width, y + height), box_color, 2)
+                cv2.putText(
+                    frame,
+                    color_name.upper(),
+                    (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    box_color,
+                    2,
+                )
+
+        cv2.putText(
+            frame,
+            f"COLOR MODE: {selected_color.upper()}",
+            (20, frame.shape[0] - 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+        )
+        return frame
+
     def update_frame(self):
         if self.cap is None:
             return
@@ -282,6 +367,9 @@ class CameraApp(QMainWindow):
 
         if selected_level.startswith("Level 3"):
             display_frame = self.apply_motion_detection(display_frame)
+        elif selected_level.startswith("Level 4"):
+            self.previous_gray = None
+            display_frame = self.apply_color_detection(display_frame)
         else:
             self.previous_gray = None
 
