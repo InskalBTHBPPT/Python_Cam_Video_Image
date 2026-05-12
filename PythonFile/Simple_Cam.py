@@ -23,6 +23,9 @@ frame_size = (frame_width, frame_height)
 
 is_recording = False
 video_writer = None
+is_motion_detection_enabled = False
+previous_gray = None
+min_motion_area = 1000
 
 while True:
     ret, frame = cap.read()
@@ -31,8 +34,47 @@ while True:
         print("Gagal membaca frame")
         break
 
+    if is_motion_detection_enabled:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (21, 21), 0)
+        motion_detected = False
+
+        if previous_gray is None:
+            previous_gray = gray
+        else:
+            # Bandingkan frame saat ini dengan frame sebelumnya untuk mencari gerakan.
+            frame_delta = cv2.absdiff(previous_gray, gray)
+            threshold = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
+            threshold = cv2.dilate(threshold, None, iterations=2)
+
+            contours, _ = cv2.findContours(
+                threshold,
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_SIMPLE,
+            )
+
+            for contour in contours:
+                if cv2.contourArea(contour) < min_motion_area:
+                    continue
+
+                motion_detected = True
+                x, y, width, height = cv2.boundingRect(contour)
+                cv2.rectangle(frame, (x, y), (x + width, y + height), (0, 255, 0), 2)
+
+            previous_gray = gray
+
+        if motion_detected:
+            cv2.putText(
+                frame,
+                "MOTION DETECTED",
+                (20, 80),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 255, 255),
+                2,
+            )
+
     if is_recording:
-        video_writer.write(frame)
         cv2.putText(
             frame,
             "REC",
@@ -40,6 +82,18 @@ while True:
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
             (0, 0, 255),
+            2,
+        )
+        video_writer.write(frame)
+
+    if is_motion_detection_enabled:
+        cv2.putText(
+            frame,
+            "MOTION ON",
+            (20, frame_height - 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
             2,
         )
 
@@ -64,6 +118,15 @@ while True:
             video_writer.release()
             video_writer = None
             print("Rekaman dihentikan")
+
+    if key == ord("m"):
+        is_motion_detection_enabled = not is_motion_detection_enabled
+        previous_gray = None
+
+        if is_motion_detection_enabled:
+            print("Deteksi gerakan aktif")
+        else:
+            print("Deteksi gerakan nonaktif")
 
     if key == ord("q"):
         break
