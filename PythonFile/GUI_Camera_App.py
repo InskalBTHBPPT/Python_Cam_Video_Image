@@ -68,7 +68,10 @@ BOX_COLORS = {
 }
 
 HAND_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-HAND_MODEL_PATH = Path("models/hand_landmarker.task")
+BASE_DIR = Path(__file__).resolve().parents[1]
+MODEL_DIR = BASE_DIR / "models"
+
+HAND_MODEL_PATH = MODEL_DIR / "hand_landmarker.task"
 HAND_CONNECTIONS = vision.HandLandmarksConnections.HAND_CONNECTIONS if MEDIAPIPE_AVAILABLE else []
 
 WRIST = 0
@@ -84,6 +87,7 @@ PINKY_PIP = 18
 PINKY_TIP = 20
 
 YOLO_MODEL_NAME = "yolo11n.pt"
+YOLO_MODEL_PATH = MODEL_DIR / YOLO_MODEL_NAME
 
 
 class CameraApp(QMainWindow):
@@ -592,6 +596,23 @@ class CameraApp(QMainWindow):
 
         self.hand_start_time = None
 
+    def migrate_yolo_model_to_models_dir(self):
+        MODEL_DIR.mkdir(exist_ok=True)
+
+        if YOLO_MODEL_PATH.exists():
+            return
+
+        legacy_paths = [
+            BASE_DIR / YOLO_MODEL_NAME,
+            Path.cwd() / YOLO_MODEL_NAME,
+            Path(__file__).resolve().parent / YOLO_MODEL_NAME,
+        ]
+
+        for legacy_path in legacy_paths:
+            if legacy_path.exists() and legacy_path.resolve() != YOLO_MODEL_PATH.resolve():
+                legacy_path.replace(YOLO_MODEL_PATH)
+                return
+
     def count_raised_fingers(self, hand_landmarks, hand_label):
         raised_fingers = 0
         thumb_tip = hand_landmarks[THUMB_TIP]
@@ -698,9 +719,12 @@ class CameraApp(QMainWindow):
 
         self.status_label.setText(f"Status: Memuat model YOLO {YOLO_MODEL_NAME}...")
         QApplication.processEvents()
+        self.migrate_yolo_model_to_models_dir()
 
         try:
-            self.yolo_model = YOLO(YOLO_MODEL_NAME)
+            model_source = YOLO_MODEL_PATH if YOLO_MODEL_PATH.exists() else YOLO_MODEL_NAME
+            self.yolo_model = YOLO(str(model_source))
+            self.migrate_yolo_model_to_models_dir()
         except Exception as error:
             QMessageBox.warning(
                 self,

@@ -13,8 +13,29 @@ except ModuleNotFoundError:
 
 
 CAMERA_INDEX = 1  # 0 untuk kamera internal, 1 untuk kamera eksternal
-MODEL_NAME = "yolo11n.pt"
+MODEL_FILE_NAME = "yolo11n.pt"
+BASE_DIR = Path(__file__).resolve().parents[1]
+MODEL_DIR = BASE_DIR / "models"
+MODEL_PATH = MODEL_DIR / MODEL_FILE_NAME
 CONFIDENCE_THRESHOLD = 0.5
+
+
+def migrate_yolo_model_to_models_dir():
+    MODEL_DIR.mkdir(exist_ok=True)
+
+    if MODEL_PATH.exists():
+        return
+
+    legacy_paths = [
+        BASE_DIR / MODEL_FILE_NAME,
+        Path.cwd() / MODEL_FILE_NAME,
+        Path(__file__).resolve().parent / MODEL_FILE_NAME,
+    ]
+
+    for legacy_path in legacy_paths:
+        if legacy_path.exists() and legacy_path.resolve() != MODEL_PATH.resolve():
+            legacy_path.replace(MODEL_PATH)
+            return
 
 
 def print_detectable_objects(model):
@@ -36,13 +57,16 @@ if not cap.isOpened():
     exit()
 
 print("Level 7: Deteksi objek dengan YOLO")
-print(f"Model: {MODEL_NAME}")
+print(f"Model: {MODEL_PATH}")
 print("Tekan 's' untuk simpan foto")
 print("Tekan 'l' untuk lihat daftar objek yang bisa dideteksi")
 print("Tekan 'q' untuk keluar")
 print("Catatan: pertama kali dijalankan, model YOLO akan diunduh otomatis.")
 
-model = YOLO(MODEL_NAME)
+migrate_yolo_model_to_models_dir()
+model_source = MODEL_PATH if MODEL_PATH.exists() else MODEL_FILE_NAME
+model = YOLO(str(model_source))
+migrate_yolo_model_to_models_dir()
 
 while True:
     ret, frame = cap.read()

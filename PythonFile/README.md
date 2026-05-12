@@ -191,7 +191,7 @@ Level ini memakai library tambahan bernama Ultralytics. Jika belum terinstall, j
 pip install ultralytics
 ```
 
-Script ini memakai model pretrained `yolo11n.pt`. Model tersebut sudah dilatih untuk mengenali objek umum dari dataset COCO. Saat pertama kali dijalankan, model akan diunduh otomatis.
+Script ini memakai model pretrained `yolo11n.pt`. Model tersebut sudah dilatih untuk mengenali objek umum dari dataset COCO. File model disimpan di folder `models` sebagai `models/yolo11n.pt`. Saat pertama kali dijalankan, model akan diunduh otomatis.
 
 Contoh objek yang bisa dideteksi:
 
@@ -244,6 +244,8 @@ captures/object_detection_20260512_095100.jpg
 
 Catatan: Level 7 belum training model sendiri. Level ini memakai model yang sudah dilatih sebelumnya. Training model sendiri akan masuk ke Level 8.
 
+Jika masih ada file `yolo11n.pt` lama di root project atau folder `PythonFile`, script akan memindahkannya otomatis ke folder `models`.
+
 ## GUI_Camera_App.py
 
 File ini adalah versi GUI bertahap menggunakan PySide6.
@@ -295,7 +297,7 @@ Tahap 6 menambahkan:
 Tahap 7 menambahkan:
 
 - Integrasi dropdown `Level 7 - Deteksi Objek YOLO`.
-- Model pretrained `yolo11n.pt` dipakai untuk deteksi objek umum.
+- Model pretrained `models/yolo11n.pt` dipakai untuk deteksi objek umum.
 - Dropdown `Objek YOLO` untuk memilih semua objek atau satu class tertentu, misalnya `bottle`.
 - Dropdown `Confidence YOLO` untuk mengatur ambang confidence.
 - Foto dan video yang disimpan ikut memakai tampilan hasil deteksi objek.
