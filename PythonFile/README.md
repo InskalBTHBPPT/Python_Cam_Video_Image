@@ -100,6 +100,47 @@ python PythonFile/Level_3_Deteksi_Gerakan.py
 
 Jika `m` dan `r` aktif bersamaan, hasil video akan ikut menyimpan tampilan kotak deteksi gerakan.
 
+## Level_4_Deteksi_Warna.py
+
+File ini adalah latihan Level 4 untuk mendeteksi benda berdasarkan warna.
+
+Warna yang dideteksi:
+
+- Merah.
+- Hijau.
+- Biru.
+
+Fitur:
+
+- Menampilkan live preview dari kamera.
+- Mendeteksi warna menggunakan format HSV.
+- Memberi kotak pada benda berwarna yang terdeteksi.
+- Memilih warna tertentu atau mendeteksi semua warna sekaligus.
+- Menyimpan hasil tampilan sebagai foto.
+
+Tombol:
+
+- `1` untuk deteksi warna merah.
+- `2` untuk deteksi warna hijau.
+- `3` untuk deteksi warna biru.
+- `a` untuk deteksi semua warna.
+- `s` untuk menyimpan foto.
+- `q` untuk keluar.
+
+Cara menjalankan:
+
+```bash
+python PythonFile/Level_4_Deteksi_Warna.py
+```
+
+Output foto akan tersimpan seperti ini:
+
+```text
+captures/color_detection_20260512_092900.jpg
+```
+
+Catatan: hasil deteksi warna sangat dipengaruhi pencahayaan kamera. Jika warna tidak terdeteksi dengan baik, nilai HSV di `COLOR_RANGES` bisa disesuaikan.
+
 ## Simple_Cam.py
 
 File ini adalah versi gabungan dari latihan sebelumnya.
@@ -110,7 +151,7 @@ Fitur di dalamnya:
 - Rekam video.
 - Deteksi gerakan.
 
-File ini tetap bisa dipakai, tetapi untuk belajar bertahap lebih mudah menggunakan file Level 1, Level 2, dan Level 3.
+File ini tetap bisa dipakai, tetapi untuk belajar bertahap lebih mudah menggunakan file Level 1, Level 2, Level 3, dan Level 4.
 
 ## Catatan Penting
 
