@@ -150,7 +150,8 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
                 results.handedness,
             ):
                 hand_count += 1
-                hand_label = handedness_list[0].category_name
+                raw_hand_label = handedness_list[0].category_name
+                hand_label = "Left" if raw_hand_label == "Right" else "Right"
                 raised_fingers = count_raised_fingers(hand_landmarks, hand_label)
                 total_fingers += raised_fingers
 
