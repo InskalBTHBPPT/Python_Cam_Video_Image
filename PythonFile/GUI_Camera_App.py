@@ -1,3 +1,5 @@
+from datetime import datetime
+from pathlib import Path
 import sys
 
 import cv2
@@ -10,6 +12,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -24,6 +27,10 @@ class CameraApp(QMainWindow):
         self.resize(960, 640)
 
         self.cap = None
+        self.last_frame = None
+        self.capture_dir = Path("captures")
+        self.capture_dir.mkdir(exist_ok=True)
+
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_frame)
 
@@ -45,7 +52,9 @@ class CameraApp(QMainWindow):
 
         self.start_button = QPushButton("Start Camera")
         self.stop_button = QPushButton("Stop Camera")
+        self.capture_button = QPushButton("Save Capture Image")
         self.stop_button.setEnabled(False)
+        self.capture_button.setEnabled(False)
 
         self.status_label = QLabel("Status: Kamera belum aktif")
         self.status_label.setAlignment(Qt.AlignLeft)
@@ -59,6 +68,7 @@ class CameraApp(QMainWindow):
 
         self.start_button.clicked.connect(self.start_camera)
         self.stop_button.clicked.connect(self.stop_camera)
+        self.capture_button.clicked.connect(self.save_capture_image)
 
         controls_layout = QGridLayout()
         controls_layout.addWidget(QLabel("Pilih Level:"), 0, 0)
@@ -69,6 +79,7 @@ class CameraApp(QMainWindow):
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.stop_button)
+        button_layout.addWidget(self.capture_button)
         button_layout.addStretch()
 
         main_layout = QVBoxLayout()
@@ -96,6 +107,7 @@ class CameraApp(QMainWindow):
         self.timer.start(30)
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
+        self.capture_button.setEnabled(True)
         self.level_combo.setEnabled(False)
         self.camera_combo.setEnabled(False)
         self.status_label.setText(f"Status: Kamera aktif | {selected_level}")
@@ -109,11 +121,25 @@ class CameraApp(QMainWindow):
 
         self.preview_label.clear()
         self.preview_label.setText("Preview kamera akan tampil di sini")
+        self.last_frame = None
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
+        self.capture_button.setEnabled(False)
         self.level_combo.setEnabled(True)
         self.camera_combo.setEnabled(True)
         self.status_label.setText("Status: Kamera berhenti")
+
+    def save_capture_image(self):
+        if self.last_frame is None:
+            QMessageBox.warning(self, "Capture gagal", "Belum ada frame kamera untuk disimpan.")
+            return
+
+        filename = self.capture_dir / f"gui_capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        cv2.imwrite(str(filename), self.last_frame)
+        saved_path = filename.resolve()
+
+        self.status_label.setText(f"Status: Foto tersimpan di {saved_path}")
+        QMessageBox.information(self, "Foto tersimpan", f"File disimpan di:\n{saved_path}")
 
     def update_frame(self):
         if self.cap is None:
@@ -127,6 +153,7 @@ class CameraApp(QMainWindow):
             return
 
         frame = cv2.flip(frame, 1)
+        self.last_frame = frame.copy()
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         height, width, channel = rgb_frame.shape
         bytes_per_line = channel * width

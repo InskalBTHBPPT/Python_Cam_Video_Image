@@ -256,6 +256,12 @@ Tahap 1 berisi:
 - Tombol `Stop Camera`.
 - Preview kamera langsung di window GUI.
 
+Tahap 2 menambahkan:
+
+- Tombol `Save Capture Image`.
+- Menyimpan frame kamera terakhir ke folder `captures`.
+- Menampilkan notifikasi berisi path file foto yang disimpan.
+
 Install PySide6 jika belum tersedia:
 
 ```bash
@@ -268,7 +274,7 @@ Cara menjalankan:
 python PythonFile/GUI_Camera_App.py
 ```
 
-Catatan: pada Tahap 1, dropdown level baru dipakai sebagai pilihan tampilan/status. Fitur capture, record, dan deteksi per level akan ditambahkan bertahap setelah preview kamera di GUI sudah OK.
+Catatan: pada Tahap 2, dropdown level masih dipakai sebagai pilihan tampilan/status. Fitur record dan deteksi per level akan ditambahkan bertahap setelah capture image di GUI sudah OK.
 
 ## Simple_Cam.py
 
