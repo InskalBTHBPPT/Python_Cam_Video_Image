@@ -284,6 +284,14 @@ Tahap 5 menambahkan:
 - Benda berwarna diberi kotak sesuai warna deteksi.
 - Foto dan video yang disimpan ikut memakai tampilan hasil deteksi warna.
 
+Tahap 6 menambahkan:
+
+- Integrasi dropdown `Level 6 - Deteksi Tangan/Jari`.
+- Deteksi maksimal 2 tangan dengan MediaPipe.
+- Landmark tangan digambar di preview GUI.
+- Jumlah jari setiap tangan dan total jari ditampilkan.
+- Foto dan video yang disimpan ikut memakai tampilan hasil deteksi tangan.
+
 Install PySide6 jika belum tersedia:
 
 ```bash
@@ -296,7 +304,7 @@ Cara menjalankan:
 python PythonFile/GUI_Camera_App.py
 ```
 
-Catatan: pada Tahap 5, dropdown `Level 3 - Deteksi Gerakan` dan `Level 4 - Deteksi Warna` sudah aktif. Level lain sementara masih memakai preview biasa.
+Catatan: pada Tahap 6, dropdown `Level 3 - Deteksi Gerakan`, `Level 4 - Deteksi Warna`, dan `Level 6 - Deteksi Tangan/Jari` sudah aktif. Level lain sementara masih memakai preview biasa.
 
 ## Simple_Cam.py
 

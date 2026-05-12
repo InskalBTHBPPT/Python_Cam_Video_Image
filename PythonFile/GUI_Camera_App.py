@@ -1,6 +1,9 @@
 from datetime import datetime
 from pathlib import Path
 import sys
+from time import monotonic
+from urllib.error import URLError
+from urllib.request import urlretrieve
 
 import cv2
 import numpy as np
@@ -18,6 +21,18 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+try:
+    import mediapipe as mp
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+
+    MEDIAPIPE_AVAILABLE = True
+except ModuleNotFoundError:
+    MEDIAPIPE_AVAILABLE = False
+    mp = None
+    python = None
+    vision = None
 
 MIN_COLOR_AREA = 1200
 COLOR_RANGES = {
@@ -39,12 +54,28 @@ BOX_COLORS = {
     "biru": (255, 0, 0),
 }
 
+HAND_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+HAND_MODEL_PATH = Path("models/hand_landmarker.task")
+HAND_CONNECTIONS = vision.HandLandmarksConnections.HAND_CONNECTIONS if MEDIAPIPE_AVAILABLE else []
+
+WRIST = 0
+THUMB_IP = 3
+THUMB_TIP = 4
+INDEX_FINGER_PIP = 6
+INDEX_FINGER_TIP = 8
+MIDDLE_FINGER_PIP = 10
+MIDDLE_FINGER_TIP = 12
+RING_FINGER_PIP = 14
+RING_FINGER_TIP = 16
+PINKY_PIP = 18
+PINKY_TIP = 20
+
 
 class CameraApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Python Camera GUI - Tahap 5")
+        self.setWindowTitle("Python Camera GUI - Tahap 6")
         self.resize(960, 640)
 
         self.cap = None
@@ -54,6 +85,8 @@ class CameraApp(QMainWindow):
         self.is_recording = False
         self.previous_gray = None
         self.min_motion_area = 1000
+        self.hand_landmarker = None
+        self.hand_start_time = None
         self.capture_dir = Path("captures")
         self.recording_dir = Path("recordings")
         self.capture_dir.mkdir(exist_ok=True)
@@ -141,6 +174,11 @@ class CameraApp(QMainWindow):
             self.status_label.setText(f"Status: Kamera index {camera_index} tidak terdeteksi")
             return
 
+        if selected_level.startswith("Level 6") and not self.setup_hand_landmarker():
+            self.cap.release()
+            self.cap = None
+            return
+
         self.previous_gray = None
         self.timer.start(30)
         self.start_button.setEnabled(False)
@@ -160,6 +198,8 @@ class CameraApp(QMainWindow):
         if self.cap is not None:
             self.cap.release()
             self.cap = None
+
+        self.release_hand_landmarker()
 
         self.preview_label.clear()
         self.preview_label.setText("Preview kamera akan tampil di sini")
@@ -350,6 +390,153 @@ class CameraApp(QMainWindow):
         )
         return frame
 
+    def ensure_hand_landmarker_model(self):
+        if HAND_MODEL_PATH.exists():
+            return True
+
+        HAND_MODEL_PATH.parent.mkdir(exist_ok=True)
+        self.status_label.setText("Status: Mengunduh model hand landmarker...")
+        QApplication.processEvents()
+
+        try:
+            urlretrieve(HAND_MODEL_URL, HAND_MODEL_PATH)
+        except (OSError, URLError):
+            QMessageBox.warning(
+                self,
+                "Model gagal diunduh",
+                "Model hand landmarker gagal diunduh.\nPastikan laptop terhubung internet.",
+            )
+            return False
+
+        return True
+
+    def setup_hand_landmarker(self):
+        if self.hand_landmarker is not None:
+            return True
+
+        if not MEDIAPIPE_AVAILABLE:
+            QMessageBox.warning(
+                self,
+                "MediaPipe belum tersedia",
+                "Install MediaPipe terlebih dahulu:\n\npip install mediapipe",
+            )
+            return False
+
+        if not self.ensure_hand_landmarker_model():
+            return False
+
+        base_options = python.BaseOptions(model_asset_path=str(HAND_MODEL_PATH))
+        options = vision.HandLandmarkerOptions(
+            base_options=base_options,
+            running_mode=vision.RunningMode.VIDEO,
+            num_hands=2,
+            min_hand_detection_confidence=0.7,
+            min_hand_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
+        self.hand_landmarker = vision.HandLandmarker.create_from_options(options)
+        self.hand_start_time = monotonic()
+        return True
+
+    def release_hand_landmarker(self):
+        if self.hand_landmarker is not None:
+            self.hand_landmarker.close()
+            self.hand_landmarker = None
+
+        self.hand_start_time = None
+
+    def count_raised_fingers(self, hand_landmarks, hand_label):
+        raised_fingers = 0
+        thumb_tip = hand_landmarks[THUMB_TIP]
+        thumb_ip = hand_landmarks[THUMB_IP]
+
+        if hand_label == "Right" and thumb_tip.x < thumb_ip.x:
+            raised_fingers += 1
+        elif hand_label == "Left" and thumb_tip.x > thumb_ip.x:
+            raised_fingers += 1
+
+        finger_tips = [
+            INDEX_FINGER_TIP,
+            MIDDLE_FINGER_TIP,
+            RING_FINGER_TIP,
+            PINKY_TIP,
+        ]
+        finger_pips = [
+            INDEX_FINGER_PIP,
+            MIDDLE_FINGER_PIP,
+            RING_FINGER_PIP,
+            PINKY_PIP,
+        ]
+
+        for tip_id, pip_id in zip(finger_tips, finger_pips):
+            if hand_landmarks[tip_id].y < hand_landmarks[pip_id].y:
+                raised_fingers += 1
+
+        return raised_fingers
+
+    def draw_hand_landmarks(self, frame, hand_landmarks):
+        frame_height, frame_width, _ = frame.shape
+
+        for connection in HAND_CONNECTIONS:
+            start = hand_landmarks[connection.start]
+            end = hand_landmarks[connection.end]
+            start_point = (int(start.x * frame_width), int(start.y * frame_height))
+            end_point = (int(end.x * frame_width), int(end.y * frame_height))
+            cv2.line(frame, start_point, end_point, (0, 255, 0), 2)
+
+        for landmark in hand_landmarks:
+            point = (int(landmark.x * frame_width), int(landmark.y * frame_height))
+            cv2.circle(frame, point, 4, (0, 0, 255), -1)
+
+    def apply_hand_detection(self, frame):
+        if self.hand_landmarker is None or self.hand_start_time is None:
+            return frame
+
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        timestamp_ms = int((monotonic() - self.hand_start_time) * 1000)
+        results = self.hand_landmarker.detect_for_video(mp_image, timestamp_ms)
+
+        total_fingers = 0
+        hand_count = 0
+
+        if results.hand_landmarks and results.handedness:
+            for hand_landmarks, handedness_list in zip(
+                results.hand_landmarks,
+                results.handedness,
+            ):
+                hand_count += 1
+                raw_hand_label = handedness_list[0].category_name
+                hand_label = "Left" if raw_hand_label == "Right" else "Right"
+                raised_fingers = self.count_raised_fingers(hand_landmarks, hand_label)
+                total_fingers += raised_fingers
+
+                self.draw_hand_landmarks(frame, hand_landmarks)
+
+                wrist = hand_landmarks[WRIST]
+                text_x = int(wrist.x * frame.shape[1])
+                text_y = int(wrist.y * frame.shape[0]) - 20
+                cv2.putText(
+                    frame,
+                    f"{hand_label}: {raised_fingers} jari",
+                    (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
+
+        cv2.putText(
+            frame,
+            f"Tangan: {hand_count} | Total jari: {total_fingers}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 255),
+            2,
+        )
+        return frame
+
     def update_frame(self):
         if self.cap is None:
             return
@@ -370,6 +557,9 @@ class CameraApp(QMainWindow):
         elif selected_level.startswith("Level 4"):
             self.previous_gray = None
             display_frame = self.apply_color_detection(display_frame)
+        elif selected_level.startswith("Level 6"):
+            self.previous_gray = None
+            display_frame = self.apply_hand_detection(display_frame)
         else:
             self.previous_gray = None
 
