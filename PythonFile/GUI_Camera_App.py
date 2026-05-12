@@ -302,19 +302,31 @@ class CameraApp(QMainWindow):
 
     def refresh_yolo_model_combo(self):
         MODEL_DIR.mkdir(exist_ok=True)
+        current_model = self.yolo_model_combo.currentData() if hasattr(self, "yolo_model_combo") else None
         current_text = self.yolo_model_combo.currentText() if hasattr(self, "yolo_model_combo") else ""
-        model_names = sorted(path.name for path in MODEL_DIR.glob("*.pt"))
+        model_paths = sorted(MODEL_DIR.glob("*.pt"), key=lambda path: (path.stat().st_size, path.name))
+        model_items = []
 
-        if YOLO_MODEL_NAME not in model_names:
-            model_names.insert(0, YOLO_MODEL_NAME)
+        for model_path in model_paths:
+            size_mb = model_path.stat().st_size / (1024 * 1024)
+            model_items.append((f"{model_path.name} ({size_mb:.1f} MB)", model_path.name))
+
+        if YOLO_MODEL_NAME not in [model_name for _, model_name in model_items]:
+            model_items.insert(0, (f"{YOLO_MODEL_NAME} (download jika belum ada)", YOLO_MODEL_NAME))
 
         self.yolo_model_combo.blockSignals(True)
         self.yolo_model_combo.clear()
-        self.yolo_model_combo.addItems(model_names)
-        selected_index = self.yolo_model_combo.findText(current_text)
+
+        for label, model_name in model_items:
+            self.yolo_model_combo.addItem(label, model_name)
+
+        selected_index = self.yolo_model_combo.findData(current_model)
 
         if selected_index < 0:
-            selected_index = self.yolo_model_combo.findText(YOLO_MODEL_NAME)
+            selected_index = self.yolo_model_combo.findText(current_text)
+
+        if selected_index < 0:
+            selected_index = self.yolo_model_combo.findData(YOLO_MODEL_NAME)
 
         if selected_index >= 0:
             self.yolo_model_combo.setCurrentIndex(selected_index)
@@ -322,7 +334,7 @@ class CameraApp(QMainWindow):
         self.yolo_model_combo.blockSignals(False)
 
     def get_selected_yolo_model_path(self):
-        selected_model = self.yolo_model_combo.currentText().strip()
+        selected_model = self.yolo_model_combo.currentData()
 
         if not selected_model:
             selected_model = YOLO_MODEL_NAME

@@ -299,6 +299,7 @@ Tahap 7 menambahkan:
 - Integrasi dropdown `Level 7 - Deteksi Objek YOLO`.
 - Model pretrained `models/yolo11n.pt` dipakai untuk deteksi objek umum.
 - Dropdown `Model YOLO` membaca file `.pt` dari folder `models`.
+- Dropdown `Model YOLO` diurutkan berdasarkan ukuran file aktual dari kecil ke besar dan menampilkan ukuran MB.
 - Model default dimuat saat app start, dan model bisa diganti saat kamera sedang off.
 - Dropdown `Objek YOLO` untuk memilih semua objek atau satu class tertentu, misalnya `bottle`.
 - Dropdown `Confidence YOLO` untuk mengatur ambang confidence.
