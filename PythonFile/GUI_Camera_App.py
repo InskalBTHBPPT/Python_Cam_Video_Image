@@ -135,7 +135,7 @@ class CameraApp(QMainWindow):
 
         self.start_button = QPushButton("Start Camera")
         self.stop_button = QPushButton("Stop Camera")
-        self.capture_button = QPushButton("Save Capture Image")
+        self.capture_button = QPushButton("Save Image")
         self.record_button = QPushButton("Start Record")
         self.stop_button.setEnabled(False)
         self.capture_button.setEnabled(False)
@@ -145,11 +145,11 @@ class CameraApp(QMainWindow):
         self.status_label.setAlignment(Qt.AlignLeft)
 
         self.preview_label = QLabel("Preview kamera akan tampil di sini")
+        self.preview_label.setObjectName("previewLabel")
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setMinimumSize(800, 500)
-        self.preview_label.setStyleSheet(
-            "background-color: #202020; color: white; border: 1px solid #555;"
-        )
+
+        self.status_label.setObjectName("statusLabel")
 
         self.start_button.clicked.connect(self.start_camera)
         self.stop_button.clicked.connect(self.stop_camera)
@@ -167,11 +167,17 @@ class CameraApp(QMainWindow):
 
         detection_group = QGroupBox("Detection Settings")
         detection_layout = QGridLayout()
-        detection_layout.addWidget(QLabel("Warna:"), 0, 0)
-        detection_layout.addWidget(self.color_combo, 0, 1)
-        detection_layout.addWidget(QLabel("Objek YOLO:"), 0, 2)
-        detection_layout.addWidget(self.yolo_object_combo, 0, 3)
-        detection_layout.addWidget(QLabel("Confidence YOLO:"), 1, 2)
+        self.detection_hint_label = QLabel("Tidak ada pengaturan tambahan untuk level ini.")
+        self.detection_hint_label.setObjectName("hintLabel")
+        self.color_label = QLabel("Warna:")
+        self.yolo_object_label = QLabel("Objek YOLO:")
+        self.yolo_confidence_label = QLabel("Confidence YOLO:")
+        detection_layout.addWidget(self.detection_hint_label, 0, 0, 1, 4)
+        detection_layout.addWidget(self.color_label, 1, 0)
+        detection_layout.addWidget(self.color_combo, 1, 1)
+        detection_layout.addWidget(self.yolo_object_label, 1, 0)
+        detection_layout.addWidget(self.yolo_object_combo, 1, 1)
+        detection_layout.addWidget(self.yolo_confidence_label, 1, 2)
         detection_layout.addWidget(self.yolo_confidence_combo, 1, 3)
         detection_group.setLayout(detection_layout)
 
@@ -184,9 +190,12 @@ class CameraApp(QMainWindow):
         button_layout.addStretch()
         action_group.setLayout(button_layout)
 
+        top_controls_layout = QHBoxLayout()
+        top_controls_layout.addWidget(camera_group, 1)
+        top_controls_layout.addWidget(detection_group, 1)
+
         main_layout = QVBoxLayout()
-        main_layout.addWidget(camera_group)
-        main_layout.addWidget(detection_group)
+        main_layout.addLayout(top_controls_layout)
         main_layout.addWidget(action_group)
         main_layout.addWidget(self.preview_label)
         main_layout.addWidget(self.status_label)
@@ -194,15 +203,100 @@ class CameraApp(QMainWindow):
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
+        self.apply_modern_style()
         self.update_level_controls()
+
+    def apply_modern_style(self):
+        self.setStyleSheet(
+            """
+            QMainWindow {
+                background-color: #f3f6fb;
+            }
+
+            QGroupBox {
+                background-color: #ffffff;
+                border: 1px solid #d8dee9;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding: 10px;
+                font-weight: 600;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: #2f3a4a;
+            }
+
+            QLabel {
+                color: #2f3a4a;
+            }
+
+            QLabel#hintLabel {
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            QLabel#statusLabel {
+                color: #1f2937;
+                padding: 6px 2px;
+            }
+
+            QLabel#previewLabel {
+                background-color: #15171a;
+                color: #d1d5db;
+                border: 1px solid #2f3542;
+                border-radius: 8px;
+            }
+
+            QComboBox {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 5px 8px;
+                min-height: 24px;
+            }
+
+            QComboBox:disabled {
+                background-color: #edf0f5;
+                color: #9aa3af;
+            }
+
+            QPushButton {
+                background-color: #2563eb;
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                padding: 7px 12px;
+                font-weight: 600;
+            }
+
+            QPushButton:hover {
+                background-color: #1d4ed8;
+            }
+
+            QPushButton:disabled {
+                background-color: #d1d5db;
+                color: #6b7280;
+            }
+            """
+        )
 
     def update_level_controls(self):
         selected_level = self.level_combo.currentText()
         is_level_4 = selected_level.startswith("Level 4")
         is_level_7 = selected_level.startswith("Level 7")
 
+        self.detection_hint_label.setVisible(not is_level_4 and not is_level_7)
+        self.color_label.setVisible(is_level_4)
+        self.color_combo.setVisible(is_level_4)
         self.color_combo.setEnabled(is_level_4)
+        self.yolo_object_label.setVisible(is_level_7)
+        self.yolo_object_combo.setVisible(is_level_7)
         self.yolo_object_combo.setEnabled(is_level_7)
+        self.yolo_confidence_label.setVisible(is_level_7)
+        self.yolo_confidence_combo.setVisible(is_level_7)
         self.yolo_confidence_combo.setEnabled(is_level_7)
 
     def start_camera(self):

@@ -258,7 +258,7 @@ Tahap 1 berisi:
 
 Tahap 2 menambahkan:
 
-- Tombol `Save Capture Image`.
+- Tombol `Save Image`.
 - Menyimpan frame kamera terakhir ke folder `captures`.
 - Menampilkan notifikasi berisi path file foto yang disimpan.
 
@@ -301,6 +301,9 @@ Tahap 7 menambahkan:
 - Foto dan video yang disimpan ikut memakai tampilan hasil deteksi objek.
 - Kontrol khusus Level 4 dan Level 7 otomatis aktif hanya saat level terkait dipilih.
 - Layout kontrol GUI dikelompokkan menjadi `Camera Settings`, `Detection Settings`, dan `Actions`.
+- Detection Settings hanya menampilkan kontrol yang relevan untuk level yang dipilih.
+- Tampilan GUI memakai stylesheet agar lebih modern.
+- `Camera Settings` dan `Detection Settings` ditampilkan sejajar dalam satu baris.
 
 Install Ultralytics jika belum tersedia:
 
