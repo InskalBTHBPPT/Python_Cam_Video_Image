@@ -1,9 +1,13 @@
 from datetime import datetime
 from pathlib import Path
+import os
 import sys
 from time import monotonic
 from urllib.error import URLError
 from urllib.request import urlretrieve
+
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault("GLOG_minloglevel", "2")
 
 import cv2
 import numpy as np
@@ -210,12 +214,12 @@ class CameraApp(QMainWindow):
         self.setStyleSheet(
             """
             QMainWindow {
-                background-color: #f3f6fb;
+                background-color: #d8dde5;
             }
 
             QGroupBox {
-                background-color: #ffffff;
-                border: 1px solid #d8dee9;
+                background-color: #e8ebf0;
+                border: 1px solid #b8c0cc;
                 border-radius: 8px;
                 margin-top: 10px;
                 padding: 10px;
@@ -226,20 +230,20 @@ class CameraApp(QMainWindow):
                 subcontrol-origin: margin;
                 left: 12px;
                 padding: 0 6px;
-                color: #2f3a4a;
+                color: #263241;
             }
 
             QLabel {
-                color: #2f3a4a;
+                color: #263241;
             }
 
             QLabel#hintLabel {
-                color: #6b7280;
+                color: #667085;
                 font-style: italic;
             }
 
             QLabel#statusLabel {
-                color: #1f2937;
+                color: #263241;
                 padding: 6px 2px;
             }
 
@@ -251,16 +255,16 @@ class CameraApp(QMainWindow):
             }
 
             QComboBox {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
+                background-color: #f7f8fa;
+                border: 1px solid #aeb7c4;
                 border-radius: 6px;
                 padding: 5px 8px;
                 min-height: 24px;
             }
 
             QComboBox:disabled {
-                background-color: #edf0f5;
-                color: #9aa3af;
+                background-color: #cfd5de;
+                color: #7b8491;
             }
 
             QPushButton {
@@ -277,8 +281,8 @@ class CameraApp(QMainWindow):
             }
 
             QPushButton:disabled {
-                background-color: #d1d5db;
-                color: #6b7280;
+                background-color: #bfc6d1;
+                color: #6f7885;
             }
             """
         )

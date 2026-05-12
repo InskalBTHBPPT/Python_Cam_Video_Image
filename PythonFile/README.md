@@ -302,8 +302,9 @@ Tahap 7 menambahkan:
 - Kontrol khusus Level 4 dan Level 7 otomatis aktif hanya saat level terkait dipilih.
 - Layout kontrol GUI dikelompokkan menjadi `Camera Settings`, `Detection Settings`, dan `Actions`.
 - Detection Settings hanya menampilkan kontrol yang relevan untuk level yang dipilih.
-- Tampilan GUI memakai stylesheet agar lebih modern.
+- Tampilan GUI memakai stylesheet grey theme agar lebih modern dan tidak terlalu putih.
 - `Camera Settings` dan `Detection Settings` ditampilkan sejajar dalam satu baris.
+- Log TensorFlow Lite/MediaPipe yang tidak penting dikurangi lewat environment variable.
 
 Install Ultralytics jika belum tersedia:
 
