@@ -292,6 +292,20 @@ Tahap 6 menambahkan:
 - Jumlah jari setiap tangan dan total jari ditampilkan.
 - Foto dan video yang disimpan ikut memakai tampilan hasil deteksi tangan.
 
+Tahap 7 menambahkan:
+
+- Integrasi dropdown `Level 7 - Deteksi Objek YOLO`.
+- Model pretrained `yolo11n.pt` dipakai untuk deteksi objek umum.
+- Dropdown `Objek YOLO` untuk memilih semua objek atau satu class tertentu, misalnya `bottle`.
+- Dropdown `Confidence YOLO` untuk mengatur ambang confidence.
+- Foto dan video yang disimpan ikut memakai tampilan hasil deteksi objek.
+
+Install Ultralytics jika belum tersedia:
+
+```bash
+pip install ultralytics
+```
+
 Install PySide6 jika belum tersedia:
 
 ```bash
@@ -304,7 +318,7 @@ Cara menjalankan:
 python PythonFile/GUI_Camera_App.py
 ```
 
-Catatan: pada Tahap 6, dropdown `Level 3 - Deteksi Gerakan`, `Level 4 - Deteksi Warna`, dan `Level 6 - Deteksi Tangan/Jari` sudah aktif. Level lain sementara masih memakai preview biasa.
+Catatan: pada Tahap 7, dropdown `Level 3 - Deteksi Gerakan`, `Level 4 - Deteksi Warna`, `Level 6 - Deteksi Tangan/Jari`, dan `Level 7 - Deteksi Objek YOLO` sudah aktif.
 
 ## Simple_Cam.py
 

@@ -34,6 +34,14 @@ except ModuleNotFoundError:
     python = None
     vision = None
 
+try:
+    from ultralytics import YOLO
+
+    ULTRALYTICS_AVAILABLE = True
+except ModuleNotFoundError:
+    ULTRALYTICS_AVAILABLE = False
+    YOLO = None
+
 MIN_COLOR_AREA = 1200
 COLOR_RANGES = {
     "merah": [
@@ -70,12 +78,14 @@ RING_FINGER_TIP = 16
 PINKY_PIP = 18
 PINKY_TIP = 20
 
+YOLO_MODEL_NAME = "yolo11n.pt"
+
 
 class CameraApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Python Camera GUI - Tahap 6")
+        self.setWindowTitle("Python Camera GUI - Tahap 7")
         self.resize(960, 640)
 
         self.cap = None
@@ -87,6 +97,7 @@ class CameraApp(QMainWindow):
         self.min_motion_area = 1000
         self.hand_landmarker = None
         self.hand_start_time = None
+        self.yolo_model = None
         self.capture_dir = Path("captures")
         self.recording_dir = Path("recordings")
         self.capture_dir.mkdir(exist_ok=True)
@@ -113,6 +124,13 @@ class CameraApp(QMainWindow):
 
         self.color_combo = QComboBox()
         self.color_combo.addItems(["semua", "merah", "hijau", "biru"])
+
+        self.yolo_object_combo = QComboBox()
+        self.yolo_object_combo.addItem("semua")
+
+        self.yolo_confidence_combo = QComboBox()
+        self.yolo_confidence_combo.addItems(["0.25", "0.50", "0.70", "0.90"])
+        self.yolo_confidence_combo.setCurrentText("0.50")
 
         self.start_button = QPushButton("Start Camera")
         self.stop_button = QPushButton("Stop Camera")
@@ -144,6 +162,10 @@ class CameraApp(QMainWindow):
         controls_layout.addWidget(self.camera_combo, 0, 3)
         controls_layout.addWidget(QLabel("Warna:"), 1, 0)
         controls_layout.addWidget(self.color_combo, 1, 1)
+        controls_layout.addWidget(QLabel("Objek YOLO:"), 1, 2)
+        controls_layout.addWidget(self.yolo_object_combo, 1, 3)
+        controls_layout.addWidget(QLabel("Confidence YOLO:"), 2, 0)
+        controls_layout.addWidget(self.yolo_confidence_combo, 2, 1)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.start_button)
@@ -175,6 +197,11 @@ class CameraApp(QMainWindow):
             return
 
         if selected_level.startswith("Level 6") and not self.setup_hand_landmarker():
+            self.cap.release()
+            self.cap = None
+            return
+
+        if selected_level.startswith("Level 7") and not self.setup_yolo_model():
             self.cap.release()
             self.cap = None
             return
@@ -537,6 +564,95 @@ class CameraApp(QMainWindow):
         )
         return frame
 
+    def setup_yolo_model(self):
+        if self.yolo_model is not None:
+            return True
+
+        if not ULTRALYTICS_AVAILABLE:
+            QMessageBox.warning(
+                self,
+                "Ultralytics belum tersedia",
+                "Install Ultralytics terlebih dahulu:\n\npip install ultralytics",
+            )
+            return False
+
+        self.status_label.setText(f"Status: Memuat model YOLO {YOLO_MODEL_NAME}...")
+        QApplication.processEvents()
+
+        try:
+            self.yolo_model = YOLO(YOLO_MODEL_NAME)
+        except Exception as error:
+            QMessageBox.warning(
+                self,
+                "YOLO gagal dimuat",
+                f"Model YOLO gagal dimuat:\n{error}",
+            )
+            self.yolo_model = None
+            return False
+
+        self.populate_yolo_object_combo()
+        return True
+
+    def populate_yolo_object_combo(self):
+        current_text = self.yolo_object_combo.currentText()
+        self.yolo_object_combo.clear()
+        self.yolo_object_combo.addItem("semua")
+
+        for class_id in sorted(self.yolo_model.names):
+            self.yolo_object_combo.addItem(self.yolo_model.names[class_id])
+
+        if current_text:
+            index = self.yolo_object_combo.findText(current_text)
+
+            if index >= 0:
+                self.yolo_object_combo.setCurrentIndex(index)
+
+    def get_selected_yolo_class_id(self):
+        selected_object = self.yolo_object_combo.currentText()
+
+        if selected_object == "semua":
+            return None
+
+        for class_id, object_name in self.yolo_model.names.items():
+            if object_name == selected_object:
+                return class_id
+
+        return None
+
+    def apply_yolo_detection(self, frame):
+        if self.yolo_model is None:
+            return frame
+
+        confidence_threshold = float(self.yolo_confidence_combo.currentText())
+        selected_class_id = self.get_selected_yolo_class_id()
+        predict_options = {
+            "conf": confidence_threshold,
+            "verbose": False,
+        }
+
+        if selected_class_id is not None:
+            predict_options["classes"] = [selected_class_id]
+
+        results = self.yolo_model.predict(frame, **predict_options)
+        result = results[0]
+        annotated_frame = result.plot()
+
+        object_count = 0
+        if result.boxes is not None:
+            object_count = len(result.boxes)
+
+        selected_object = self.yolo_object_combo.currentText()
+        cv2.putText(
+            annotated_frame,
+            f"YOLO: {selected_object} | Objek: {object_count} | Conf: {confidence_threshold}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+        )
+        return annotated_frame
+
     def update_frame(self):
         if self.cap is None:
             return
@@ -560,6 +676,9 @@ class CameraApp(QMainWindow):
         elif selected_level.startswith("Level 6"):
             self.previous_gray = None
             display_frame = self.apply_hand_detection(display_frame)
+        elif selected_level.startswith("Level 7"):
+            self.previous_gray = None
+            display_frame = self.apply_yolo_detection(display_frame)
         else:
             self.previous_gray = None
 
