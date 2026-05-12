@@ -181,6 +181,45 @@ captures/hand_detection_20260512_093200.jpg
 
 Catatan: hasil hitung jari paling baik jika telapak tangan menghadap kamera dan jari tidak saling menutup.
 
+## Level_7_Deteksi_Objek_YOLO.py
+
+File ini adalah latihan Level 7 untuk mendeteksi objek umum dengan YOLO.
+
+Level ini memakai library tambahan bernama Ultralytics. Jika belum terinstall, jalankan:
+
+```bash
+pip install ultralytics
+```
+
+Script ini memakai model pretrained `yolo11n.pt`. Model tersebut sudah dilatih untuk mengenali objek umum, misalnya orang, botol, kursi, laptop, kendaraan, dan objek lain dari dataset COCO. Saat pertama kali dijalankan, model akan diunduh otomatis.
+
+Fitur:
+
+- Menampilkan live preview dari kamera.
+- Mendeteksi banyak objek umum dengan YOLO.
+- Memberi kotak, nama objek, dan confidence pada objek yang terdeteksi.
+- Menampilkan jumlah objek yang terdeteksi.
+- Menyimpan hasil tampilan sebagai foto.
+
+Tombol:
+
+- `s` untuk menyimpan foto.
+- `q` untuk keluar.
+
+Cara menjalankan:
+
+```bash
+python PythonFile/Level_7_Deteksi_Objek_YOLO.py
+```
+
+Output foto akan tersimpan seperti ini:
+
+```text
+captures/object_detection_20260512_095100.jpg
+```
+
+Catatan: Level 7 belum training model sendiri. Level ini memakai model yang sudah dilatih sebelumnya. Training model sendiri akan masuk ke Level 8.
+
 ## Simple_Cam.py
 
 File ini adalah versi gabungan dari latihan sebelumnya.
@@ -191,7 +230,7 @@ Fitur di dalamnya:
 - Rekam video.
 - Deteksi gerakan.
 
-File ini tetap bisa dipakai, tetapi untuk belajar bertahap lebih mudah menggunakan file Level 1, Level 2, Level 3, Level 4, dan Level 6.
+File ini tetap bisa dipakai, tetapi untuk belajar bertahap lebih mudah menggunakan file Level 1, Level 2, Level 3, Level 4, Level 6, dan Level 7.
 
 ## Catatan Penting
 

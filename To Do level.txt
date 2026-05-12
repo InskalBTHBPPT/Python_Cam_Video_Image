@@ -1,0 +1,8 @@
+Level 1: Tampilkan kamera dan simpan foto saat menekan tombol.
+Level 2: Rekam video dari USB camera.
+Level 3: Deteksi gerakan sederhana seperti CCTV.
+Level 4: Deteksi warna, misalnya benda merah/biru/hijau.
+Level 5: Deteksi wajah.
+Level 6: Deteksi tangan/jari dengan MediaPipe.
+Level 7: Deteksi objek dengan YOLO, misalnya orang, botol, kendaraan.
+Level 8: Training model sendiri untuk mengenali objek khusus.
