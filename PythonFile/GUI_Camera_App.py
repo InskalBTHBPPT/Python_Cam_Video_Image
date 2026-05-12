@@ -154,6 +154,7 @@ class CameraApp(QMainWindow):
         self.stop_button.clicked.connect(self.stop_camera)
         self.capture_button.clicked.connect(self.save_capture_image)
         self.record_button.clicked.connect(self.toggle_recording)
+        self.level_combo.currentTextChanged.connect(self.update_level_controls)
 
         controls_layout = QGridLayout()
         controls_layout.addWidget(QLabel("Pilih Level:"), 0, 0)
@@ -183,6 +184,16 @@ class CameraApp(QMainWindow):
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
+        self.update_level_controls()
+
+    def update_level_controls(self):
+        selected_level = self.level_combo.currentText()
+        is_level_4 = selected_level.startswith("Level 4")
+        is_level_7 = selected_level.startswith("Level 7")
+
+        self.color_combo.setEnabled(is_level_4)
+        self.yolo_object_combo.setEnabled(is_level_7)
+        self.yolo_confidence_combo.setEnabled(is_level_7)
 
     def start_camera(self):
         camera_index = int(self.camera_combo.currentText())
@@ -239,6 +250,7 @@ class CameraApp(QMainWindow):
         self.record_button.setText("Start Record")
         self.level_combo.setEnabled(True)
         self.camera_combo.setEnabled(True)
+        self.update_level_controls()
         self.status_label.setText("Status: Kamera berhenti")
 
     def save_capture_image(self):

@@ -299,6 +299,7 @@ Tahap 7 menambahkan:
 - Dropdown `Objek YOLO` untuk memilih semua objek atau satu class tertentu, misalnya `bottle`.
 - Dropdown `Confidence YOLO` untuk mengatur ambang confidence.
 - Foto dan video yang disimpan ikut memakai tampilan hasil deteksi objek.
+- Kontrol khusus Level 4 dan Level 7 otomatis aktif hanya saat level terkait dipilih.
 
 Install Ultralytics jika belum tersedia:
 
