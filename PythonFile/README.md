@@ -244,6 +244,32 @@ captures/object_detection_20260512_095100.jpg
 
 Catatan: Level 7 belum training model sendiri. Level ini memakai model yang sudah dilatih sebelumnya. Training model sendiri akan masuk ke Level 8.
 
+## GUI_Camera_App.py
+
+File ini adalah versi GUI bertahap menggunakan PySide6.
+
+Tahap 1 berisi:
+
+- Dropdown untuk memilih level.
+- Dropdown untuk memilih camera index.
+- Tombol `Start Camera`.
+- Tombol `Stop Camera`.
+- Preview kamera langsung di window GUI.
+
+Install PySide6 jika belum tersedia:
+
+```bash
+pip install PySide6
+```
+
+Cara menjalankan:
+
+```bash
+python PythonFile/GUI_Camera_App.py
+```
+
+Catatan: pada Tahap 1, dropdown level baru dipakai sebagai pilihan tampilan/status. Fitur capture, record, dan deteksi per level akan ditambahkan bertahap setelah preview kamera di GUI sudah OK.
+
 ## Simple_Cam.py
 
 File ini adalah versi gabungan dari latihan sebelumnya.
