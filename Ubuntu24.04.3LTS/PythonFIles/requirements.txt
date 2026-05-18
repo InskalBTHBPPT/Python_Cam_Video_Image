@@ -1,9 +1,13 @@
 # Ubuntu 24.04 / Raspberry Pi — Python 3.12 disarankan (sesuai repo Ubuntu)
-# Buat venv: python3 -m venv .venv && source .venv/bin/activate
-# Pasang dependensi sistem (contoh): sudo apt install python3-pip python3-venv libgl1 libglib2.0-0
+# venv: python3 -m venv usbcamtest && source usbcamtest/bin/activate
 
 opencv-python>=4.8.0
 numpy>=1.24.0
 PySide6>=6.6.0
 mediapipe>=0.10.0
 ultralytics>=8.0.0
+
+# --- Raspberry Pi 4 (aarch64) — Level 7 / YOLO ---
+# Pasang torch CPU ini DULU (hindari torch 2.12+cu dari pip — menyebabkan "Illegal instruction"):
+#   pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
+# Lalu: pip install -r requirements.txt

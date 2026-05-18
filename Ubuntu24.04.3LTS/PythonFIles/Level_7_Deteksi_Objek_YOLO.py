@@ -104,6 +104,7 @@ while True:
     results = model.predict(
         frame,
         conf=CONFIDENCE_THRESHOLD,
+        imgsz=320,
         verbose=False,
     )
     result = results[0]
