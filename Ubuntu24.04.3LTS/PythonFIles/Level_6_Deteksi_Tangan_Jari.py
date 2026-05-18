@@ -1,5 +1,12 @@
+"""
+Level 6 — Deteksi tangan dan jari (Ubuntu 24.04 / Raspberry Pi).
+
+Di Linux, USB webcam biasanya /dev/video0 (indeks 0).
+Model MediaPipe diunduh otomatis ke folder models/ saat pertama kali dijalankan.
+"""
 from datetime import datetime
 from pathlib import Path
+import platform
 from time import monotonic
 from urllib.error import URLError
 from urllib.request import urlretrieve
@@ -12,14 +19,25 @@ try:
     from mediapipe.tasks.python import vision
 except ModuleNotFoundError:
     print("Library mediapipe belum terinstall.")
-    print("Jalankan perintah ini terlebih dahulu:")
-    print("pip install mediapipe")
-    exit()
+    print("Aktifkan venv lalu jalankan:")
+    print("  source usbcamtest/bin/activate")
+    print("  pip install mediapipe")
+    exit(1)
 
+# Ubuntu / Raspberry Pi: mulai dari 0. Windows laptop+USB eksternal sering pakai 1.
+CAMERA_INDEX = 0
 
-CAMERA_INDEX = 1  # 0 untuk kamera internal, 1 untuk kamera eksternal
-MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-MODEL_PATH = Path("models/hand_landmarker.task")
+HAND_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
+    "hand_landmarker/float16/1/hand_landmarker.task"
+)
+
+APP_ROOT = Path(__file__).resolve().parent
+MODEL_DIR = APP_ROOT / "models"
+HAND_MODEL_PATH = MODEL_DIR / "hand_landmarker.task"
+capture_dir = APP_ROOT / "captures"
+capture_dir.mkdir(exist_ok=True)
+
 HAND_CONNECTIONS = vision.HandLandmarksConnections.HAND_CONNECTIONS
 
 WRIST = 0
@@ -34,39 +52,36 @@ RING_FINGER_TIP = 16
 PINKY_PIP = 18
 PINKY_TIP = 20
 
-cap = cv2.VideoCapture(CAMERA_INDEX)
-capture_dir = Path("captures")
-capture_dir.mkdir(exist_ok=True)
 
-if not cap.isOpened():
-    print("Kamera tidak terdeteksi")
-    exit()
+def open_video_capture(camera_index: int) -> cv2.VideoCapture:
+    if platform.system() == "Linux":
+        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
+    return cv2.VideoCapture(camera_index)
 
 
 def ensure_hand_landmarker_model():
-    if MODEL_PATH.exists():
+    if HAND_MODEL_PATH.exists():
         return True
 
-    MODEL_PATH.parent.mkdir(exist_ok=True)
+    MODEL_DIR.mkdir(exist_ok=True)
     print("Model hand landmarker belum ada. Mengunduh model...")
 
     try:
-        urlretrieve(MODEL_URL, MODEL_PATH)
-    except URLError:
+        urlretrieve(HAND_MODEL_URL, HAND_MODEL_PATH)
+    except (OSError, URLError):
         print("Gagal mengunduh model hand landmarker.")
-        print("Pastikan laptop terhubung internet, lalu jalankan ulang script ini.")
+        print("Pastikan perangkat terhubung internet, lalu jalankan ulang skrip ini.")
         return False
 
-    print(f"Model tersimpan: {MODEL_PATH}")
+    print(f"Model tersimpan: {HAND_MODEL_PATH.resolve()}")
     return True
 
 
 def count_raised_fingers(hand_landmarks, hand_label):
-    landmarks = hand_landmarks
     raised_fingers = 0
 
-    thumb_tip = landmarks[THUMB_TIP]
-    thumb_ip = landmarks[THUMB_IP]
+    thumb_tip = hand_landmarks[THUMB_TIP]
+    thumb_ip = hand_landmarks[THUMB_IP]
 
     if hand_label == "Right" and thumb_tip.x < thumb_ip.x:
         raised_fingers += 1
@@ -87,7 +102,7 @@ def count_raised_fingers(hand_landmarks, hand_label):
     ]
 
     for tip_id, pip_id in zip(finger_tips, finger_pips):
-        if landmarks[tip_id].y < landmarks[pip_id].y:
+        if hand_landmarks[tip_id].y < hand_landmarks[pip_id].y:
             raised_fingers += 1
 
     return raised_fingers
@@ -109,13 +124,21 @@ def draw_hand_landmarks(frame, hand_landmarks):
 
 
 if not ensure_hand_landmarker_model():
-    exit()
+    exit(1)
+
+cap = open_video_capture(CAMERA_INDEX)
+
+if not cap.isOpened():
+    print(f"Kamera tidak terdeteksi (index {CAMERA_INDEX})")
+    print("Coba ubah CAMERA_INDEX ke 0, atau jalankan: v4l2-ctl --list-devices")
+    exit(1)
 
 print("Level 6: Deteksi tangan dan hitung jari")
+print(f"Kamera aktif — index {CAMERA_INDEX}")
 print("Tekan 's' untuk simpan foto")
 print("Tekan 'q' untuk keluar")
 
-base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
+base_options = python.BaseOptions(model_asset_path=str(HAND_MODEL_PATH))
 options = vision.HandLandmarkerOptions(
     base_options=base_options,
     running_mode=vision.RunningMode.VIDEO,
@@ -187,7 +210,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         if key == ord("s"):
             filename = capture_dir / f"hand_detection_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             cv2.imwrite(str(filename), frame)
-            print(f"Foto tersimpan: {filename}")
+            print(f"Foto tersimpan: {filename.resolve()}")
 
         if key == ord("q"):
             break
