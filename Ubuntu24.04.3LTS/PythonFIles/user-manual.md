@@ -306,6 +306,7 @@ Semua path di bawah ini relatif terhadap folder tempat `GUI_Camera_App.py` berad
 | `requirements-raspberrypi.txt` | Dependensi Pi 4: torch CPU + ultralytics (§4.2). |
 | `fix_pytorch_raspi.sh` | Perbaiki PyTorch salah di venv yang sudah ada (§4.2). |
 | `check_yolo_torch.py` | Tes torch + YOLO setelah pemasangan. |
+| `v4l2_camera.py` | Buka kamera USB dengan MJPG 640×480 (hindari gambar terpotong). |
 | `models/` | Model unduhan: `hand_landmarker.task` (Level 6), file `*.pt` YOLO (Level 7). Dibuat otomatis jika perlu. |
 | `captures/` | Foto hasil **Save Image** (`gui_capture_YYYYMMDD_HHMMSS.jpg`). |
 | `recordings/` | Video hasil rekaman (`gui_recording_YYYYMMDD_HHMMSS.mp4`, codec **mp4v**). |
@@ -356,6 +357,23 @@ Ikuti langkah lengkap di **§5** terlebih dahulu. Ringkasannya:
 4. `v4l2-ctl --list-devices` (§5.4)
 5. Tes indeks OpenCV (§5.6), lalu sesuaikan **Camera Index** di GUI.
 6. Pastikan tidak ada aplikasi lain yang memegang kamera secara eksklusif.
+
+### Pratinjau / foto terpotong — bagian atas & bawah tertukar
+
+Gejala: sekitar **1/3 bawah** tampil di **atas**, **2/3 atas** di **bawah** (garis horizontal tajam). Bukan cermin horizontal (`flip` kiri–kanan).
+
+Penyebab umum di **USB webcam + V4L2 + format YUYV** tanpa resolusi/format yang benar (buffer stride salah).
+
+**Perbaikan di kode:** semua skrip memakai `v4l2_camera.py` — set **MJPG**, **640×480**, buffer 1, warmup frame.
+
+**Jika masih terjadi**, di terminal:
+
+```bash
+v4l2-ctl -d /dev/video0 --list-formats-ext
+v4l2-ctl -d /dev/video0 --set-fmt-video=width=640,height=480,pixelformat=MJPG
+```
+
+Lalu jalankan ulang GUI. Hindari indeks `/dev/video1` (sering bukan perangkat capture).
 
 ### Rekaman gagal atau file rusak
 

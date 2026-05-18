@@ -6,12 +6,13 @@ Model MediaPipe diunduh otomatis ke folder models/ saat pertama kali dijalankan.
 """
 from datetime import datetime
 from pathlib import Path
-import platform
 from time import monotonic
 from urllib.error import URLError
 from urllib.request import urlretrieve
 
 import cv2
+
+from v4l2_camera import open_video_capture
 
 try:
     import mediapipe as mp
@@ -51,12 +52,6 @@ RING_FINGER_PIP = 14
 RING_FINGER_TIP = 16
 PINKY_PIP = 18
 PINKY_TIP = 20
-
-
-def open_video_capture(camera_index: int) -> cv2.VideoCapture:
-    if platform.system() == "Linux":
-        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
-    return cv2.VideoCapture(camera_index)
 
 
 def ensure_hand_landmarker_model():

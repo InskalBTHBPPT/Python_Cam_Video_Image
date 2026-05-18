@@ -7,11 +7,11 @@ Model YOLO (default yolo11n.pt) disimpan di folder models/; unduh otomatis saat 
 import os
 from datetime import datetime
 from pathlib import Path
-import platform
-
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
 import cv2
+
+from v4l2_camera import open_video_capture
 
 try:
     from ultralytics import YOLO
@@ -32,12 +32,6 @@ MODEL_DIR = APP_ROOT / "models"
 YOLO_MODEL_PATH = MODEL_DIR / YOLO_MODEL_NAME
 capture_dir = APP_ROOT / "captures"
 capture_dir.mkdir(exist_ok=True)
-
-
-def open_video_capture(camera_index: int) -> cv2.VideoCapture:
-    if platform.system() == "Linux":
-        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
-    return cv2.VideoCapture(camera_index)
 
 
 def migrate_yolo_model_to_models_dir():

@@ -6,9 +6,9 @@ Di Linux, USB webcam biasanya /dev/video0 (indeks 0).
 """
 from datetime import datetime
 from pathlib import Path
-import platform
-
 import cv2
+
+from v4l2_camera import open_video_capture
 import numpy as np
 
 # Ubuntu / Raspberry Pi: mulai dari 0. Windows laptop+USB eksternal sering pakai 1.
@@ -37,12 +37,6 @@ BOX_COLORS = {
 APP_ROOT = Path(__file__).resolve().parent
 capture_dir = APP_ROOT / "captures"
 capture_dir.mkdir(exist_ok=True)
-
-
-def open_video_capture(camera_index: int) -> cv2.VideoCapture:
-    if platform.system() == "Linux":
-        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
-    return cv2.VideoCapture(camera_index)
 
 
 def build_color_mask(hsv_frame, color_name):

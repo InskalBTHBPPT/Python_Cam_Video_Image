@@ -128,11 +128,7 @@ YOLO_MODEL_PATH = MODEL_DIR / YOLO_MODEL_NAME
 YOLO_IMGSZ = 320
 
 
-def open_video_capture(camera_index: int) -> cv2.VideoCapture:
-    """Buka kamera dengan backend yang sesuai OS."""
-    if platform.system() == "Linux":
-        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
-    return cv2.VideoCapture(camera_index)
+from v4l2_camera import open_video_capture
 
 
 def check_pytorch_for_arm() -> tuple[bool, str]:
@@ -1000,7 +996,9 @@ class CameraApp(QMainWindow):
             )
             self.video_writer.write(display_frame)
 
-        rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+        rgb_frame = np.ascontiguousarray(
+            cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+        )
         height, width, channel = rgb_frame.shape
         bytes_per_line = channel * width
 
@@ -1010,7 +1008,7 @@ class CameraApp(QMainWindow):
             height,
             bytes_per_line,
             QImage.Format_RGB888,
-        ).copy()
+        )
 
         pixmap = QPixmap.fromImage(image)
         scaled_pixmap = pixmap.scaled(
