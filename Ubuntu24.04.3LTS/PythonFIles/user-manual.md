@@ -307,6 +307,7 @@ Semua path di bawah ini relatif terhadap folder tempat `GUI_Camera_App.py` berad
 | `fix_pytorch_raspi.sh` | Perbaiki PyTorch salah di venv yang sudah ada (§4.2). |
 | `check_yolo_torch.py` | Tes torch + YOLO setelah pemasangan. |
 | `v4l2_camera.py` | Buka kamera USB dengan MJPG 640×480 (hindari gambar terpotong). |
+| `detection_backends.py` | Empat mesin deteksi Level 7 (YOLO / MobileNet / MediaPipe / NCNN). |
 | `models/` | Model unduhan: `hand_landmarker.task` (Level 6), file `*.pt` YOLO (Level 7). Dibuat otomatis jika perlu. |
 | `captures/` | Foto hasil **Save Image** (`gui_capture_YYYYMMDD_HHMMSS.jpg`). |
 | `recordings/` | Video hasil rekaman (`gui_recording_YYYYMMDD_HHMMSS.mp4`, codec **mp4v**). |
@@ -329,13 +330,25 @@ Untuk memastikan kamera terdeteksi sistem, ikuti **§5** (`lsusb`, `/dev/video*`
 
 Pilih **semua**, **merah**, **hijau**, atau **biru**. Pencarian warna memakai ruang HSV pada frame BGR dari kamera.
 
-### 8.4 Level 7 — YOLO
+### 8.4 Level 7 — Deteksi objek (pilih mesin)
 
-- **Model YOLO:** daftar file `*.pt` di folder `models/`. Jika model belum ada, Ultralytics dapat mengunduh saat pertama kali dimuat (perlu internet).
-- **Objek YOLO:** filter kelas; **semua** berarti tanpa filter kelas.
-- **Confidence YOLO:** ambang kepercayaan deteksi (0.25–0.90).
+| Mesin deteksi | Kapan dipakai | Catatan |
+|---------------|---------------|---------|
+| **1. YOLO PyTorch** | Akurasi tinggi, Pi lambat | `yolo11n.pt`, torch 2.4.1 CPU (§4.2) |
+| **2. MobileNet-SSD** | Cepat di Pi, tanpa PyTorch inferensi | Model Caffe diunduh otomatis ke `models/` |
+| **3. MediaPipe EfficientDet** | Cepat, kelas terbatas | `efficientdet_lite0.tflite` diunduh ke `models/` |
+| **4. NCNN YOLO** | Cepat setelah export | Butuh folder `models/yolo11n_ncnn_model/` |
 
-Ganti model YOLO hanya saat kamera **tidak** aktif.
+**Export NCNN (sekali, di venv):**
+
+```bash
+yolo export model=models/yolo11n.pt format=ncnn imgsz=320
+```
+
+- **Model YOLO:** hanya untuk mesin **1** dan **4** (saat kamera berhenti).
+- **Filter objek / Confidence:** semua mesin.
+
+Uji **satu mesin dulu** (misalnya YOLO), lalu ganti **Mesin deteksi** di GUI saat kamera berhenti.
 
 ---
 
