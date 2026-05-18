@@ -1,5 +1,15 @@
+"""
+Level 7 — Deteksi objek YOLO (Ubuntu 24.04 / Raspberry Pi).
+
+Di Linux, USB webcam biasanya /dev/video0 (indeks 0).
+Model YOLO (default yolo11n.pt) disimpan di folder models/; unduh otomatis saat pertama kali.
+"""
+import os
 from datetime import datetime
 from pathlib import Path
+import platform
+
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
 import cv2
 
@@ -7,35 +17,44 @@ try:
     from ultralytics import YOLO
 except ModuleNotFoundError:
     print("Library ultralytics belum terinstall.")
-    print("Jalankan perintah ini terlebih dahulu:")
-    print("pip install ultralytics")
-    exit()
+    print("Aktifkan venv lalu jalankan:")
+    print("  source usbcamtest/bin/activate")
+    print("  pip install ultralytics")
+    exit(1)
 
-
-CAMERA_INDEX = 1  # 0 untuk kamera internal, 1 untuk kamera eksternal
-MODEL_FILE_NAME = "yolo11n.pt"
-BASE_DIR = Path(__file__).resolve().parents[1]
-MODEL_DIR = BASE_DIR / "models"
-MODEL_PATH = MODEL_DIR / MODEL_FILE_NAME
+# Ubuntu / Raspberry Pi: mulai dari 0. Windows laptop+USB eksternal sering pakai 1.
+CAMERA_INDEX = 0
+YOLO_MODEL_NAME = "yolo11n.pt"
 CONFIDENCE_THRESHOLD = 0.5
+
+APP_ROOT = Path(__file__).resolve().parent
+MODEL_DIR = APP_ROOT / "models"
+YOLO_MODEL_PATH = MODEL_DIR / YOLO_MODEL_NAME
+capture_dir = APP_ROOT / "captures"
+capture_dir.mkdir(exist_ok=True)
+
+
+def open_video_capture(camera_index: int) -> cv2.VideoCapture:
+    if platform.system() == "Linux":
+        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
+    return cv2.VideoCapture(camera_index)
 
 
 def migrate_yolo_model_to_models_dir():
     MODEL_DIR.mkdir(exist_ok=True)
 
-    if MODEL_PATH.exists():
-        return
-
-    legacy_paths = [
-        BASE_DIR / MODEL_FILE_NAME,
-        Path.cwd() / MODEL_FILE_NAME,
-        Path(__file__).resolve().parent / MODEL_FILE_NAME,
+    legacy_dirs = [
+        APP_ROOT,
+        Path.cwd(),
+        APP_ROOT.parent,
     ]
 
-    for legacy_path in legacy_paths:
-        if legacy_path.exists() and legacy_path.resolve() != MODEL_PATH.resolve():
-            legacy_path.replace(MODEL_PATH)
-            return
+    for legacy_dir in legacy_dirs:
+        for legacy_path in legacy_dir.glob("*.pt"):
+            target_path = MODEL_DIR / legacy_path.name
+
+            if legacy_path.resolve() != target_path.resolve() and not target_path.exists():
+                legacy_path.replace(target_path)
 
 
 def print_detectable_objects(model):
@@ -48,25 +67,32 @@ def print_detectable_objects(model):
     print()
 
 
-cap = cv2.VideoCapture(CAMERA_INDEX)
-capture_dir = Path("captures")
-capture_dir.mkdir(exist_ok=True)
-
-if not cap.isOpened():
-    print("Kamera tidak terdeteksi")
-    exit()
+migrate_yolo_model_to_models_dir()
+model_source = YOLO_MODEL_PATH if YOLO_MODEL_PATH.exists() else YOLO_MODEL_NAME
 
 print("Level 7: Deteksi objek dengan YOLO")
-print(f"Model: {MODEL_PATH}")
+print(f"Model: {YOLO_MODEL_PATH}")
+print("Memuat model YOLO (unduh otomatis jika belum ada)...")
+
+try:
+    model = YOLO(str(model_source))
+    migrate_yolo_model_to_models_dir()
+except Exception as error:
+    print(f"Model YOLO gagal dimuat: {error}")
+    print("Pastikan internet aktif untuk unduhan pertama, atau letakkan file .pt di folder models/.")
+    exit(1)
+
+cap = open_video_capture(CAMERA_INDEX)
+
+if not cap.isOpened():
+    print(f"Kamera tidak terdeteksi (index {CAMERA_INDEX})")
+    print("Coba ubah CAMERA_INDEX ke 0, atau jalankan: v4l2-ctl --list-devices")
+    exit(1)
+
+print(f"Kamera aktif — index {CAMERA_INDEX}")
 print("Tekan 's' untuk simpan foto")
 print("Tekan 'l' untuk lihat daftar objek yang bisa dideteksi")
 print("Tekan 'q' untuk keluar")
-print("Catatan: pertama kali dijalankan, model YOLO akan diunduh otomatis.")
-
-migrate_yolo_model_to_models_dir()
-model_source = MODEL_PATH if MODEL_PATH.exists() else MODEL_FILE_NAME
-model = YOLO(str(model_source))
-migrate_yolo_model_to_models_dir()
 
 while True:
     ret, frame = cap.read()
@@ -104,7 +130,7 @@ while True:
     if key == ord("s"):
         filename = capture_dir / f"object_detection_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         cv2.imwrite(str(filename), annotated_frame)
-        print(f"Foto tersimpan: {filename}")
+        print(f"Foto tersimpan: {filename.resolve()}")
 
     if key == ord("l"):
         print_detectable_objects(model)
