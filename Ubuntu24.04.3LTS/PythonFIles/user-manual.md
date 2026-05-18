@@ -48,15 +48,28 @@ sudo apt install -y v4l-utils
 
 ## 4. Lingkungan virtual dan pip
 
-Masuk ke folder yang berisi `GUI_Camera_App.py` dan `requirements.txt`:
+Masuk ke folder yang berisi `GUI_Camera_App.py` dan `requirements.txt`.
+
+Panduan ini memakai nama lingkungan virtual **`usbcamtest`** (folder di samping skrip). Nama folder bebas — Anda bisa memakai nama lain, asalkan perintah `source` dan path di bawah disesuaikan.
 
 ```bash
 cd /path/ke/PythonFIles
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv usbcamtest
+source usbcamtest/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+Setelah aktif, prompt terminal biasanya diawali `(usbcamtest)`. Untuk keluar dari lingkungan virtual: `deactivate`.
+
+Tanpa `activate`, Anda tetap bisa memakai interpreter di dalam folder venv:
+
+```bash
+usbcamtest/bin/pip install -r requirements.txt
+usbcamtest/bin/python GUI_Camera_App.py
+```
+
+Jangan commit folder `usbcamtest/` ke Git (tambahkan ke `.gitignore` jika belum ada).
 
 **Catatan Raspberry Pi (ARM):** beberapa paket (PySide6, MediaPipe, PyTorch lewat Ultralytics) membutuhkan wheel yang tersedia untuk arsitektur Anda. Jika `pip install` gagal, periksa dokumentasi resmi paket tersebut untuk **aarch64** / **arm64**.
 
@@ -65,7 +78,7 @@ pip install -r requirements.txt
 ## 5. Menjalankan aplikasi
 
 ```bash
-source .venv/bin/activate
+source usbcamtest/bin/activate
 python GUI_Camera_App.py
 ```
 
@@ -97,6 +110,7 @@ Semua path di bawah ini relatif terhadap folder tempat `GUI_Camera_App.py` berad
 
 | Folder / file | Keterangan |
 |---------------|------------|
+| `usbcamtest/` | Lingkungan virtual Python (dibuat dengan `python3 -m venv usbcamtest`). Jangan di-commit ke Git. |
 | `models/` | Model unduhan: `hand_landmarker.task` (Level 6), file `*.pt` YOLO (Level 7). Dibuat otomatis jika perlu. |
 | `captures/` | Foto hasil **Save Image** (`gui_capture_YYYYMMDD_HHMMSS.jpg`). |
 | `recordings/` | Video hasil rekaman (`gui_recording_YYYYMMDD_HHMMSS.mp4`, codec **mp4v**). |
@@ -163,15 +177,15 @@ Gunakan model lebih kecil (misalnya `yolo11n.pt`), turunkan resolusi kamera di p
 
 ### Import / pip gagal
 
-Periksa versi Python (`python3 --version`) dan gunakan `venv` yang sama dengan `pip install -r requirements.txt`. Pada ARM, gunakan wheel resmi atau sumber build yang didukung vendor.
+Periksa versi Python (`python3 --version`), aktifkan `source usbcamtest/bin/activate`, lalu pasang ulang dengan `pip install -r requirements.txt` di lingkungan yang sama. Pada ARM, gunakan wheel resmi atau sumber build yang didukung vendor.
 
 ---
 
 ## 10. Referensi cepat perintah
 
 ```bash
-# Aktifkan venv dan jalankan
-cd /path/ke/PythonFIles && source .venv/bin/activate && python GUI_Camera_App.py
+# Aktifkan venv usbcamtest dan jalankan
+cd /path/ke/PythonFIles && source usbcamtest/bin/activate && python GUI_Camera_App.py
 
 # Daftar kamera V4L2
 v4l2-ctl --list-devices
