@@ -2,3 +2,4 @@ captures/
 recordings/
 *.pt
 models/
+usbcamtest/
