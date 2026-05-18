@@ -1,13 +1,14 @@
-# Ubuntu 24.04 / Raspberry Pi — Python 3.12 disarankan (sesuai repo Ubuntu)
-# venv: python3 -m venv usbcamtest && source usbcamtest/bin/activate
+# Dependensi umum (Level 1–6, GUI). Python 3.10+.
+#
+# Raspberry Pi 4 (aarch64) + Level 7 / YOLO:
+#   JANGAN hanya file ini — pakai requirements-raspberrypi.txt atau skrip fix_pytorch_raspi.sh
+#   (lihat user-manual.md §4.2).
+#
+# PC Ubuntu / x86_64 (tanpa masalah Illegal instruction):
+#   pip install -r requirements.txt
 
 opencv-python>=4.8.0
 numpy>=1.24.0
 PySide6>=6.6.0
 mediapipe>=0.10.0
 ultralytics>=8.0.0
-
-# --- Raspberry Pi 4 (aarch64) — Level 7 / YOLO ---
-# Pasang torch CPU ini DULU (hindari torch 2.12+cu dari pip — menyebabkan "Illegal instruction"):
-#   pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
-# Lalu: pip install -r requirements.txt

@@ -1,0 +1,20 @@
+# Raspberry Pi 4 / aarch64 — pasang SATU file ini (bukan requirements.txt saja).
+#
+#   source /path/ke/usbcamtest/bin/activate
+#   pip install -r requirements-raspberrypi.txt
+#
+# Atau perbaiki venv yang sudah ada PyTorch CUDA/salah:
+#   bash fix_pytorch_raspi.sh
+#
+# PyTorch CPU dipasang DULU agar ultralytics tidak menarik torch+cu (Illegal instruction).
+
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch==2.4.1
+torchvision==0.19.1
+
+opencv-python>=4.8.0
+numpy>=1.24.0
+PySide6>=6.6.0
+mediapipe>=0.10.0
+ultralytics>=8.0.0

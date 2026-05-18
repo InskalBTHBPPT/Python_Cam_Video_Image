@@ -50,30 +50,82 @@ sudo apt install -y v4l-utils usbutils
 
 ## 4. Lingkungan virtual dan pip
 
-Masuk ke folder yang berisi `GUI_Camera_App.py` dan `requirements.txt`.
+Masuk ke folder yang berisi `GUI_Camera_App.py` dan file `requirements*.txt`.
 
-Panduan ini memakai nama lingkungan virtual **`usbcamtest`** (folder di samping skrip). Nama folder bebas — Anda bisa memakai nama lain, asalkan perintah `source` dan path di bawah disesuaikan.
+Panduan ini memakai venv bernama **`usbcamtest`**. Lokasi umum:
+
+- `Python_Cam_Video_Image/usbcamtest/` (di root repo), atau
+- `PythonFIles/usbcamtest/` (di samping skrip)
+
+Nama folder bebas — sesuaikan perintah `source` di bawah.
+
+### 4.1 Buat venv (semua platform)
 
 ```bash
-cd /path/ke/PythonFIles
+cd /path/ke/Python_Cam_Video_Image
 python3 -m venv usbcamtest
 source usbcamtest/bin/activate
 pip install --upgrade pip
+```
+
+Setelah aktif, prompt biasanya diawali `(usbcamtest)`. Keluar: `deactivate`.
+
+Jangan commit folder `usbcamtest/` ke Git (sudah ada di `.gitignore` repo).
+
+### 4.2 Raspberry Pi 4 — pemasangan aman (disarankan)
+
+Di **aarch64** (Raspberry Pi), `pip install -r requirements.txt` saja sering menarik **PyTorch + CUDA** (`2.12+cu130`, paket `nvidia-*`). Itu memicu **`Illegal instruction (core dumped)`** saat Level 7 / `model.predict()`.
+
+**Instalasi baru di Pi** — pakai file khusus Pi:
+
+```bash
+cd /path/ke/PythonFIles
+source /path/ke/usbcamtest/bin/activate
+pip install -r requirements-raspberrypi.txt
+```
+
+**Venv sudah ada / PyTorch salah** — jalankan skrip perbaikan (hapus torch CUDA, pasang torch CPU, tes YOLO):
+
+```bash
+cd /path/ke/PythonFIles
+chmod +x fix_pytorch_raspi.sh
+./fix_pytorch_raspi.sh
+```
+
+Skrip mencari venv aktif atau `usbcamtest` di root repo / `PythonFIles`, lalu:
+
+1. Mencopot `torch`, `torchvision`, dan paket `nvidia-*` jika ada  
+2. Memasang `torch==2.4.1` + `torchvision==0.19.1` (CPU, index PyTorch)  
+3. Memasang dependensi lain dari `requirements-raspberrypi.txt`  
+4. Menjalankan `check_yolo_torch.py` (tes inferensi singkat)
+
+Verifikasi manual:
+
+```bash
+python -c "import torch; print(torch.__version__)"
+# Harus: 2.4.1 (tanpa +cu)
+
+python check_yolo_torch.py
+# Harus: YOLO predict: OK
+```
+
+### 4.3 PC Ubuntu / x86_64 (bukan Raspberry Pi)
+
+```bash
+source usbcamtest/bin/activate
 pip install -r requirements.txt
 ```
 
-Setelah aktif, prompt terminal biasanya diawali `(usbcamtest)`. Untuk keluar dari lingkungan virtual: `deactivate`.
+PyTorch dari Ultralytics biasanya cocok di PC. Tidak perlu `requirements-raspberrypi.txt` kecuali Anda ingin versi torch tertentu.
 
-Tanpa `activate`, Anda tetap bisa memakai interpreter di dalam folder venv:
+### 4.4 Tanpa perintah `activate`
 
 ```bash
-usbcamtest/bin/pip install -r requirements.txt
-usbcamtest/bin/python GUI_Camera_App.py
+/path/ke/usbcamtest/bin/pip install -r requirements-raspberrypi.txt
+/path/ke/usbcamtest/bin/python GUI_Camera_App.py
 ```
 
-Jangan commit folder `usbcamtest/` ke Git (tambahkan ke `.gitignore` jika belum ada).
-
-**Catatan Raspberry Pi (ARM):** beberapa paket (PySide6, MediaPipe, PyTorch lewat Ultralytics) membutuhkan wheel yang tersedia untuk arsitektur Anda. Jika `pip install` gagal, periksa dokumentasi resmi paket tersebut untuk **aarch64** / **arm64**.
+**Catatan ARM:** PySide6 dan MediaPipe membutuhkan wheel **aarch64**. Jika `pip install` gagal, lihat dokumentasi resmi paket tersebut.
 
 ---
 
@@ -220,7 +272,11 @@ Semua path di bawah ini relatif terhadap folder tempat `GUI_Camera_App.py` berad
 
 | Folder / file | Keterangan |
 |---------------|------------|
-| `usbcamtest/` | Lingkungan virtual Python (dibuat dengan `python3 -m venv usbcamtest`). Jangan di-commit ke Git. |
+| `usbcamtest/` | Lingkungan virtual (biasanya di root repo). Jangan di-commit ke Git. |
+| `requirements.txt` | Dependensi umum; **bukan** untuk Pi saja (Level 7). |
+| `requirements-raspberrypi.txt` | Dependensi Pi 4: torch CPU + ultralytics (§4.2). |
+| `fix_pytorch_raspi.sh` | Perbaiki PyTorch salah di venv yang sudah ada (§4.2). |
+| `check_yolo_torch.py` | Tes torch + YOLO setelah pemasangan. |
 | `models/` | Model unduhan: `hand_landmarker.task` (Level 6), file `*.pt` YOLO (Level 7). Dibuat otomatis jika perlu. |
 | `captures/` | Foto hasil **Save Image** (`gui_capture_YYYYMMDD_HHMMSS.jpg`). |
 | `recordings/` | Video hasil rekaman (`gui_recording_YYYYMMDD_HHMMSS.mp4`, codec **mp4v**). |
@@ -281,13 +337,44 @@ Writer memakai **MP4** + **mp4v**. Jika `VideoWriter` gagal dibuka, instal codec
 - Pastikan `mediapipe` terpasang.
 - Model `hand_landmarker.task` diunduh otomatis ke `models/` saat pertama dipakai; butuh koneksi internet.
 
+### Level 7 — `Illegal instruction (core dumped)`
+
+Penyebab umum di **Raspberry Pi 4**: PyTorch dari pip bertanda **`+cu`** (CUDA) atau versi **2.11 / 2.12** yang memakai instruksi CPU tidak didukung Cortex-A72. Kamera bisa sudah aktif, lalu program crash saat inferensi pertama.
+
+Gejala: keluaran berhenti setelah `Kamera aktif — index 0`, atau crash pada `model.predict()`.
+
+**Perbaikan (venv sudah ada):**
+
+```bash
+cd /path/ke/PythonFIles
+source /path/ke/usbcamtest/bin/activate
+./fix_pytorch_raspi.sh
+```
+
+**Perbaikan manual:**
+
+```bash
+pip uninstall -y torch torchvision
+pip list --format=freeze | sed -n 's/^\(nvidia-[^=]*\)==.*/\1/p' | xargs -r pip uninstall -y
+pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-raspberrypi.txt
+python check_yolo_torch.py
+```
+
+Pastikan `python -c "import torch; print(torch.__version__)"` menampilkan **`2.4.1`** tanpa **`+cu`**.
+
 ### Level 7 — YOLO lambat atau error memori
 
-Gunakan model lebih kecil (misalnya `yolo11n.pt`), turunkan resolusi kamera di pengaturan sistem/driver jika memungkinkan, atau jalankan di mesin dengan RAM lebih besar.
+Gunakan model lebih kecil (`yolo11n.pt`). Skrip Level 7 memakai `imgsz=320` untuk Pi. Turunkan resolusi kamera di sistem jika perlu; 8 GB RAM Pi 4 biasanya cukup, bottleneck di CPU.
 
 ### Import / pip gagal
 
-Periksa versi Python (`python3 --version`), aktifkan `source usbcamtest/bin/activate`, lalu pasang ulang dengan `pip install -r requirements.txt` di lingkungan yang sama. Pada ARM, gunakan wheel resmi atau sumber build yang didukung vendor.
+Periksa `python3 --version`, aktifkan venv, lalu:
+
+- **Raspberry Pi:** `pip install -r requirements-raspberrypi.txt` atau `./fix_pytorch_raspi.sh`
+- **PC x86_64:** `pip install -r requirements.txt`
+
+Pada ARM, gunakan wheel resmi; hindari mencampur `requirements.txt` saja lalu menginstal ultralytics tanpa torch CPU yang dipin.
 
 ---
 
@@ -304,8 +391,14 @@ dmesg | tail -30
 source usbcamtest/bin/activate
 python3 -c "import cv2; c=cv2.VideoCapture(0, cv2.CAP_V4L2); print('OK' if c.isOpened() else 'gagal'); c.release()"
 
+# Raspberry Pi: perbaiki / pasang PyTorch aman
+cd /path/ke/PythonFIles && ./fix_pytorch_raspi.sh
+
+# Tes torch + YOLO (Pi)
+python check_yolo_torch.py
+
 # Aktifkan venv usbcamtest dan jalankan GUI
-cd /path/ke/PythonFIles && source usbcamtest/bin/activate && python GUI_Camera_App.py
+cd /path/ke/PythonFIles && source ../usbcamtest/bin/activate && python GUI_Camera_App.py
 ```
 
 ---
