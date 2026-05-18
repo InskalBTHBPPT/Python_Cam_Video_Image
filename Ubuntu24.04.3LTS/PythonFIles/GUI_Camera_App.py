@@ -19,7 +19,32 @@ from urllib.request import urlretrieve
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 os.environ.setdefault("GLOG_minloglevel", "2")
 
+
+def _configure_qt_plugin_path():
+    """
+    opencv-python membawa plugin Qt di cv2/qt/plugins — bentrok dengan PySide6.
+    Pakai plugin Qt dari PySide6; butuh libxcb-cursor0 di sistem (apt).
+    """
+    os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+
+    try:
+        import PySide6
+    except ModuleNotFoundError:
+        return
+
+    plugins_root = Path(PySide6.__file__).resolve().parent / "Qt" / "plugins"
+    if plugins_root.is_dir():
+        os.environ["QT_PLUGIN_PATH"] = str(plugins_root)
+
+
+_configure_qt_plugin_path()
+
 import cv2
+
+# cv2 dapat mengatur ulang path plugin Qt saat impor
+os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+_configure_qt_plugin_path()
+
 import numpy as np
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
@@ -1001,6 +1026,7 @@ class CameraApp(QMainWindow):
 
 
 if __name__ == "__main__":
+    _configure_qt_plugin_path()
     app = QApplication(sys.argv)
     window = CameraApp()
     window.show()

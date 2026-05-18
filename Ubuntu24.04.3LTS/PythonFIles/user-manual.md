@@ -35,8 +35,12 @@ Di terminal (contoh paket umum untuk OpenCV + Qt):
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-pip python3-venv \
-  libgl1 libglib2.0-0 libsm6 libxext6 libxrender1
+  libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 \
+  libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
+  libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xfixes0
 ```
+
+Paket `libxcb-cursor0` **wajib** untuk PySide6/Qt 6.5+ di X11 (tanpa ini GUI bisa gagal: *Could not load the Qt platform plugin "xcb"*).
 
 Untuk alat diagnosa kamera (disarankan untuk §5):
 
@@ -255,9 +259,34 @@ python GUI_Camera_App.py
 
 Atau gunakan desktop jarak jauh (VNC, RDP, dll.) dan jalankan aplikasi dari sesi grafis tersebut.
 
-### 6.2 Wayland vs X11
+### 6.2 Jendela GUI tidak muncul — error Qt `xcb`
 
-Jika jendela tidak tampil atau ada error Qt terkait platform, coba:
+Contoh pesan:
+
+```text
+xcb-cursor0 or libxcb-cursor0 is needed ...
+Could not load the Qt platform plugin "xcb" in ".../cv2/qt/plugins"
+```
+
+**Langkah 1 — paket sistem (paling sering cukup):**
+
+```bash
+sudo apt update
+sudo apt install -y libxcb-cursor0 libxkbcommon-x11-0
+```
+
+**Langkah 2 — jalankan dari sesi desktop** (bukan SSH tanpa DISPLAY):
+
+```bash
+export DISPLAY=:0
+cd /path/ke/PythonFIles
+source /path/ke/usbcamtest/bin/activate
+python GUI_Camera_App.py
+```
+
+**Langkah 3 — paksa plugin PySide6 (bukan OpenCV):** skrip `GUI_Camera_App.py` sudah mengatur ini; pastikan file terbaru.
+
+**Langkah 4 — Wayland vs X11:** jika masih gagal:
 
 ```bash
 export QT_QPA_PLATFORM=xcb
