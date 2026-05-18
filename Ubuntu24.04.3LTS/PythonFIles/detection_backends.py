@@ -26,13 +26,13 @@ BACKEND_CHOICES = [
     ("ncnn", "4. NCNN YOLO (cepat, perlu export)"),
 ]
 
+# Repo chuanqi305/MobileNet-SSD (opencv_extra/master sering 404)
 MOBILENET_PROTOTXT_URL = (
-    "https://raw.githubusercontent.com/opencv/opencv_extra/master/testdata/dnn/"
-    "MobileNetSSD_deploy.prototxt"
+    "https://raw.githubusercontent.com/chuanqi305/MobileNet-SSD/master/deploy.prototxt"
 )
 MOBILENET_CAFFEMODEL_URL = (
-    "https://raw.githubusercontent.com/opencv/opencv_extra/master/testdata/dnn/"
-    "MobileNetSSD_deploy.caffemodel"
+    "https://raw.githubusercontent.com/chuanqi305/MobileNet-SSD/master/"
+    "mobilenet_iter_73000.caffemodel"
 )
 
 MOBILENET_CLASSES = [
@@ -201,11 +201,12 @@ class MobileNetBackend(ObjectDetectorBackend):
         count = 0
 
         for i in range(detections.shape[2]):
-            score = float(detections[0, 0, i])
+            # Keluaran [1, 1, N, 7]: (batch, class_id, score, x1, y1, x2, y2)
+            score = float(detections[0, 0, i, 2])
             if score < confidence:
                 continue
 
-            class_id = int(detections[0, 1, i])
+            class_id = int(detections[0, 0, i, 1])
             if class_id < 0 or class_id >= len(MOBILENET_CLASSES):
                 continue
 
@@ -215,7 +216,7 @@ class MobileNetBackend(ObjectDetectorBackend):
             if class_filter and label != class_filter:
                 continue
 
-            box = detections[0, 3:7, i] * np.array([w, h, w, h])
+            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             x1, y1, x2, y2 = box.astype(int)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(
