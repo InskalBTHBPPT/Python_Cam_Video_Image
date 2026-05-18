@@ -1,11 +1,18 @@
+"""
+Level 4 — Deteksi warna (Ubuntu 24.04 / Raspberry Pi).
+
+Di Linux, USB webcam biasanya /dev/video0 (indeks 0).
+/dev/video1 pada perangkat yang sama sering bukan perangkat capture.
+"""
 from datetime import datetime
 from pathlib import Path
+import platform
 
 import cv2
 import numpy as np
 
-
-CAMERA_INDEX = 1  # 0 untuk kamera internal, 1 untuk kamera eksternal
+# Ubuntu / Raspberry Pi: mulai dari 0. Windows laptop+USB eksternal sering pakai 1.
+CAMERA_INDEX = 0
 MIN_COLOR_AREA = 1200
 
 COLOR_RANGES = {
@@ -27,6 +34,16 @@ BOX_COLORS = {
     "biru": (255, 0, 0),
 }
 
+APP_ROOT = Path(__file__).resolve().parent
+capture_dir = APP_ROOT / "captures"
+capture_dir.mkdir(exist_ok=True)
+
+
+def open_video_capture(camera_index: int) -> cv2.VideoCapture:
+    if platform.system() == "Linux":
+        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
+    return cv2.VideoCapture(camera_index)
+
 
 def build_color_mask(hsv_frame, color_name):
     mask = None
@@ -44,17 +61,17 @@ def build_color_mask(hsv_frame, color_name):
     return mask
 
 
-cap = cv2.VideoCapture(CAMERA_INDEX)
-capture_dir = Path("captures")
-capture_dir.mkdir(exist_ok=True)
+cap = open_video_capture(CAMERA_INDEX)
 
 if not cap.isOpened():
-    print("Kamera tidak terdeteksi")
-    exit()
+    print(f"Kamera tidak terdeteksi (index {CAMERA_INDEX})")
+    print("Coba ubah CAMERA_INDEX ke 0, atau jalankan: v4l2-ctl --list-devices")
+    exit(1)
 
 selected_color = "semua"
 
 print("Level 4: Deteksi warna merah, hijau, dan biru")
+print(f"Kamera aktif — index {CAMERA_INDEX}")
 print("Tekan '1' untuk deteksi merah")
 print("Tekan '2' untuk deteksi hijau")
 print("Tekan '3' untuk deteksi biru")
@@ -133,7 +150,7 @@ while True:
     if key == ord("s"):
         filename = capture_dir / f"color_detection_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         cv2.imwrite(str(filename), frame)
-        print(f"Foto tersimpan: {filename}")
+        print(f"Foto tersimpan: {filename.resolve()}")
 
     if key == ord("q"):
         break
