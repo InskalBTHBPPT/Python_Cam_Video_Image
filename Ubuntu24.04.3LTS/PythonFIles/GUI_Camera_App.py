@@ -99,6 +99,8 @@ PINKY_TIP = 20
 
 YOLO_MODEL_NAME = "yolo11n.pt"
 YOLO_MODEL_PATH = MODEL_DIR / YOLO_MODEL_NAME
+# Resolusi inferensi lebih kecil — penting untuk performa di Raspberry Pi
+YOLO_IMGSZ = 320
 
 
 def open_video_capture(camera_index: int) -> cv2.VideoCapture:
@@ -106,6 +108,34 @@ def open_video_capture(camera_index: int) -> cv2.VideoCapture:
     if platform.system() == "Linux":
         return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
     return cv2.VideoCapture(camera_index)
+
+
+def check_pytorch_for_arm() -> tuple[bool, str]:
+    """Pastikan torch CPU cocok di aarch64 (hindari +cu / Illegal instruction)."""
+    if platform.machine() != "aarch64":
+        return True, ""
+
+    try:
+        import torch
+    except ModuleNotFoundError:
+        return (
+            False,
+            "PyTorch belum terpasang.\n\n"
+            "Di Raspberry Pi jalankan:\n"
+            "  pip install -r requirements-raspberrypi.txt\n"
+            "atau: ./fix_pytorch_raspi.sh",
+        )
+
+    version = torch.__version__
+    if "+cu" in version or version.startswith(("2.11", "2.12")):
+        return (
+            False,
+            f"PyTorch {version} tidak cocok untuk Raspberry Pi.\n\n"
+            "Jalankan di folder PythonFIles:\n"
+            "  ./fix_pytorch_raspi.sh",
+        )
+
+    return True, ""
 
 
 class CameraApp(QMainWindow):
@@ -649,7 +679,9 @@ class CameraApp(QMainWindow):
             QMessageBox.warning(
                 self,
                 "MediaPipe belum tersedia",
-                "Install MediaPipe terlebih dahulu:\n\npip install mediapipe",
+                "Install MediaPipe di venv usbcamtest:\n\n"
+                "pip install -r requirements-raspberrypi.txt\n"
+                "(atau requirements.txt di PC)",
             )
             return False
 
@@ -798,8 +830,18 @@ class CameraApp(QMainWindow):
                 QMessageBox.warning(
                     self,
                     "Ultralytics belum tersedia",
-                    "Install Ultralytics terlebih dahulu:\n\npip install ultralytics",
+                    "Install dependensi di venv usbcamtest:\n\n"
+                    "Raspberry Pi:\n"
+                    "  pip install -r requirements-raspberrypi.txt\n"
+                    "PC:\n"
+                    "  pip install -r requirements.txt",
                 )
+            return False
+
+        torch_ok, torch_message = check_pytorch_for_arm()
+        if not torch_ok:
+            if show_errors:
+                QMessageBox.warning(self, "PyTorch tidak cocok", torch_message)
             return False
 
         self.status_label.setText(f"Status: Memuat model YOLO {selected_model_path.name}...")
@@ -863,6 +905,7 @@ class CameraApp(QMainWindow):
         selected_class_id = self.get_selected_yolo_class_id()
         predict_options = {
             "conf": confidence_threshold,
+            "imgsz": YOLO_IMGSZ,
             "verbose": False,
         }
 
