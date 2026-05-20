@@ -153,49 +153,12 @@ def index():
     h1 { font-size: 1.25rem; font-weight: 600; padding: 1rem; margin: 0; }
     img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
     p { font-size: 0.85rem; color: #888; padding-bottom: 1rem; }
-    #motion-status {
-      display: inline-block;
-      margin: 0.5rem 0 1rem;
-      padding: 0.35rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      background: #333;
-      color: #aaa;
-    }
-    #motion-status.active { background: #3a2a00; color: #ffcc00; }
-    #motion-status.off { background: #222; color: #666; }
   </style>
 </head>
 <body>
   <h1>Live stream kamera</h1>
-  <div id="motion-status">Memuat status gerakan…</div>
   <img src="/video_feed" alt="Live stream"/>
-  <p>Streaming saja — tidak ada rekaman ke disk.</p>
-  <script>
-    const badge = document.getElementById("motion-status");
-    async function pollMotion() {
-      try {
-        const res = await fetch("/api/motion");
-        const data = await res.json();
-        if (!data.enabled) {
-          badge.textContent = "Deteksi gerakan: nonaktif";
-          badge.className = "off";
-        } else if (data.detected) {
-          badge.textContent = "GERAKAN TERDETEKSI";
-          badge.className = "active";
-        } else {
-          badge.textContent = "Deteksi gerakan: aktif — tidak ada gerakan";
-          badge.className = "";
-        }
-      } catch (_) {
-        badge.textContent = "Status gerakan tidak tersedia";
-        badge.className = "off";
-      }
-    }
-    pollMotion();
-    setInterval(pollMotion, 500);
-  </script>
+  <p>Streaming saja — tidak ada rekaman ke disk. Deteksi gerakan tampil langsung di video.</p>
 </body>
 </html>"""
 

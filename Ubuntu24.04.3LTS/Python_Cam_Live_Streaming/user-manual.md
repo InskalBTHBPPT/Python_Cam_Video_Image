@@ -263,11 +263,12 @@ Algoritma sama dengan `Level_3_Deteksi_Gerakan.py`:
 3. Threshold + dilate → kontur  
 4. Kotak hijau pada area gerakan; teks **MOTION DETECTED** jika ada gerakan  
 
-**Default aktif** — cukup jalankan `python live_stream_mjpeg.py`. Di browser:
+**Default aktif** — cukup jalankan `python live_stream_mjpeg.py`. Status gerakan tampil **langsung di video stream**:
 
-- Badge status di atas video (polling `/api/motion`)
-- Overlay **MOTION ON** di pojok bawah stream
-- Kotak hijau + **MOTION DETECTED** saat ada gerakan
+- Overlay **MOTION ON** di pojok bawah
+- Kotak hijau + teks **MOTION DETECTED** saat ada gerakan
+
+Tidak ada polling HTTP berulang — log terminal sama tenang seperti versi tanpa deteksi (hanya `GET /` sekali dan `GET /video_feed` terus-menerus).
 
 Matikan deteksi (stream lebih ringan):
 
@@ -281,7 +282,7 @@ Sesuaikan sensitivitas — nilai lebih **kecil** = lebih sensitif:
 python live_stream_mjpeg.py --min-motion-area 400
 ```
 
-API status JSON (untuk integrasi):
+API status JSON (opsional — panggil manual jika perlu integrasi, tidak di-poll otomatis):
 
 ```text
 GET http://10.45.2.103:8080/api/motion
