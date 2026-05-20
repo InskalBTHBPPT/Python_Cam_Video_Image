@@ -28,7 +28,7 @@ FRAME_WIDTH = 640
 FRAME_HEIGHT = 320
 JPEG_QUALITY = 50
 TARGET_FPS = 15
-MIRROR_HORIZONTAL = True
+MIRROR_HORIZONTAL = False
 MOTION_DETECTION = True
 
 app = Flask(__name__)
@@ -238,9 +238,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=f"Target FPS stream (default: {TARGET_FPS})",
     )
     parser.add_argument(
-        "--no-mirror",
+        "--mirror",
         action="store_true",
-        help="Matikan cermin horizontal",
+        help="Cermin horizontal (default: tampilan asli kamera)",
     )
     parser.add_argument(
         "--no-motion",
@@ -316,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
         width=args.width,
         height=args.height,
         quality=args.quality,
-        mirror=not args.no_mirror,
+        mirror=args.mirror or MIRROR_HORIZONTAL,
         target_fps=args.fps,
         motion_enabled=motion_enabled,
         min_motion_area=args.min_motion_area,

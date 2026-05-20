@@ -217,7 +217,7 @@ python live_stream_mjpeg.py
 | `--height` | `320` | Tinggi frame (piksel) |
 | `--quality` | `50` | Kualitas JPEG 1–100 (lebih kecil = lebih ringan) |
 | `--fps` | `15` | Target frame per detik |
-| `--no-mirror` | — | Matikan cermin horizontal |
+| `--mirror` | — | Cermin horizontal (default: tampilan asli) |
 | `--no-motion` | — | Matikan deteksi gerakan (default: aktif) |
 | `--min-motion-area` | otomatis | Luas kontur minimum (piksel²) |
 
