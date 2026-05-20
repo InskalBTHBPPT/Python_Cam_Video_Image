@@ -4,3 +4,7 @@ recordings/
 models/
 usbcamtest/
 livestream/
+.env
+telegram.env
+**/.env
+**/telegram.env

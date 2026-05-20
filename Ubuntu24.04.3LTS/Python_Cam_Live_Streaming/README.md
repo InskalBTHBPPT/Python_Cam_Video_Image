@@ -6,6 +6,7 @@ Live view kamera USB lewat browser (MJPEG over HTTP). **Tidak merekam** video ke
 |------|------------|
 | `live_stream_mjpeg.py` | Server streaming + deteksi gerakan |
 | `motion_detector.py` | Logika deteksi gerakan |
+| `telegram_notifier.py` | Notifikasi Telegram |
 | `v4l2_camera.py` | Buka kamera stabil di Linux/Pi (MJPG 640×320) |
 | `requirements.txt` | OpenCV + Flask |
 | `user-manual.md` | Panduan lengkap termasuk **venv** |

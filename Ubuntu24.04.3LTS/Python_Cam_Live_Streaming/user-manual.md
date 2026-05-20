@@ -43,6 +43,8 @@ Semua path relatif terhadap folder **`Python_Cam_Live_Streaming`**:
 | `livestream/` | Lingkungan virtual Python (venv) — dibuat Anda, jangan di-commit |
 | `live_stream_mjpeg.py` | Server HTTP streaming |
 | `motion_detector.py` | Deteksi gerakan (referensi `Level_3_Deteksi_Gerakan.py`) |
+| `telegram_notifier.py` | Notifikasi Telegram saat gerakan |
+| `telegram.env.example` | Contoh konfigurasi bot Telegram |
 | `v4l2_camera.py` | Konfigurasi kamera Linux/Pi |
 | `requirements.txt` | Dependensi pip (OpenCV + Flask) |
 | `user-manual.md` | Dokumen ini |
@@ -289,7 +291,80 @@ GET http://10.45.2.103:8080/api/motion
 → {"enabled": true, "detected": false}
 ```
 
-### 6.5 Menonton stream
+### 6.5 Notifikasi Telegram
+
+Saat gerakan terdeteksi, skrip dapat mengirim pesan (dan foto frame) ke Telegram. **Cooldown default 60 detik** agar tidak spam.
+
+#### Langkah 1 — Buat bot Telegram
+
+1. Di Telegram, chat **@BotFather** → `/newbot` → ikuti petunjuk.
+2. Simpan **token** bot (contoh: `7123456789:AAH...`).
+
+#### Langkah 2 — Dapatkan Chat ID
+
+1. Kirim pesan apa saja ke bot Anda (mis. `halo`).
+2. Buka di browser (ganti `<TOKEN>`):
+
+   ```text
+   https://api.telegram.org/bot<TOKEN>/getUpdates
+   ```
+
+3. Cari `"chat":{"id":123456789}` — angka itu **Chat ID** Anda.
+
+#### Langkah 3 — Buat file `telegram.env`
+
+```bash
+cd /path/ke/Python_Cam_Live_Streaming
+cp telegram.env.example telegram.env
+nano telegram.env
+```
+
+Isi:
+
+```env
+TELEGRAM_BOT_TOKEN=7123456789:AAHxxxxxxxx
+TELEGRAM_CHAT_ID=123456789
+TELEGRAM_COOLDOWN_SEC=60
+TELEGRAM_SEND_PHOTO=1
+```
+
+**Jangan commit `telegram.env`** — sudah ada di `.gitignore`.
+
+#### Langkah 4 — Jalankan server
+
+```bash
+python live_stream_mjpeg.py
+```
+
+Jika Telegram aktif, terminal menampilkan:
+
+```text
+  Telegram     : aktif (foto + teks, cooldown 60s)
+```
+
+Saat ada gerakan, HP Anda menerima foto + pesan `🚨 Gerakan terdeteksi`.
+
+#### Opsi CLI Telegram
+
+| Opsi | Keterangan |
+|------|------------|
+| `--telegram-env telegram.env` | File env (default: `telegram.env`) |
+| `--telegram-token ...` | Override token |
+| `--telegram-chat-id ...` | Override chat ID |
+| `--telegram-cooldown 120` | Jeda antar notifikasi (detik) |
+| `--telegram-text-only` | Hanya teks, tanpa foto |
+
+Contoh tanpa file env:
+
+```bash
+python live_stream_mjpeg.py \
+  --telegram-token "7123456789:AAHxxx" \
+  --telegram-chat-id "123456789"
+```
+
+**Catatan:** Raspberry Pi perlu akses internet (HTTPS ke `api.telegram.org`).
+
+### 6.6 Menonton stream
 
 | Cara | URL |
 |------|-----|
@@ -298,7 +373,7 @@ GET http://10.45.2.103:8080/api/motion
 
 VLC: *Media → Open Network Stream* → URL `video_feed` di atas.
 
-### 6.6 Hentikan server
+### 6.7 Hentikan server
 
 Di terminal Pi: **Ctrl+C**.
 
@@ -414,6 +489,14 @@ python live_stream_mjpeg.py --min-motion-area 900
 ```
 
 Atau matikan sementara: `--no-motion`.
+
+### Telegram tidak terkirim
+
+1. Pastikan `telegram.env` ada dan token/chat ID benar.
+2. Pi harus online ke internet: `curl -I https://api.telegram.org`
+3. Cek terminal: `[telegram] Gagal kirim: ...`
+4. Pastikan Anda sudah chat bot minimal sekali (`/start`).
+5. Turunkan cooldown jika uji: `--telegram-cooldown 10`
 
 ### `pip install` gagal di Raspberry Pi
 

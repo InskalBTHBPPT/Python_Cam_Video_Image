@@ -8,6 +8,7 @@ Contoh IP: http://10.45.2.103:8080/
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import threading
 import time
@@ -16,6 +17,7 @@ import cv2
 from flask import Flask, Response, jsonify
 
 from motion_detector import MotionDetector, scaled_min_motion_area
+from telegram_notifier import TelegramNotifier, load_env_file
 from v4l2_camera import open_video_capture
 
 # Raspberry Pi / Ubuntu: indeks 0 untuk webcam USB pertama (/dev/video0).
@@ -45,6 +47,7 @@ class MjpegBroadcaster:
         target_fps: float,
         motion_enabled: bool,
         min_motion_area: int | None,
+        telegram: TelegramNotifier | None = None,
     ) -> None:
         self._camera_index = camera_index
         self._width = width
@@ -55,6 +58,7 @@ class MjpegBroadcaster:
         self.motion_enabled = motion_enabled
         area = min_motion_area or scaled_min_motion_area(width, height)
         self._motion = MotionDetector(area) if motion_enabled else None
+        self._telegram = telegram if motion_enabled else None
         self._lock = threading.Lock()
         self._latest_chunk: bytes | None = None
         self.motion_detected = False
@@ -115,6 +119,9 @@ class MjpegBroadcaster:
                 with self._lock:
                     self._latest_chunk = chunk
                     self.motion_detected = detected
+
+                if detected and self._telegram is not None:
+                    self._telegram.notify_motion(chunk)
 
                 if min_interval:
                     elapsed = time.monotonic() - loop_start
@@ -246,13 +253,63 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Luas kontur minimum (piksel²); default otomatis sesuai resolusi",
     )
+    parser.add_argument(
+        "--telegram-env",
+        default="telegram.env",
+        help="File env Telegram (default: telegram.env, kosongkan untuk lewati)",
+    )
+    parser.add_argument(
+        "--telegram-token",
+        default=None,
+        help="Token bot Telegram (override env TELEGRAM_BOT_TOKEN)",
+    )
+    parser.add_argument(
+        "--telegram-chat-id",
+        default=None,
+        help="Chat ID Telegram (override env TELEGRAM_CHAT_ID)",
+    )
+    parser.add_argument(
+        "--telegram-cooldown",
+        type=float,
+        default=None,
+        help="Jeda antar notifikasi dalam detik (default: 60)",
+    )
+    parser.add_argument(
+        "--telegram-text-only",
+        action="store_true",
+        help="Telegram: kirim teks saja, tanpa foto",
+    )
     return parser.parse_args(argv)
+
+
+def build_telegram_notifier(args: argparse.Namespace) -> TelegramNotifier | None:
+    if args.telegram_env:
+        load_env_file(args.telegram_env)
+
+    token = (args.telegram_token or os.environ.get("TELEGRAM_BOT_TOKEN", "")).strip()
+    chat_id = (args.telegram_chat_id or os.environ.get("TELEGRAM_CHAT_ID", "")).strip()
+    if not token or not chat_id:
+        return None
+
+    if args.telegram_cooldown is not None:
+        cooldown = args.telegram_cooldown
+    else:
+        cooldown = float(os.environ.get("TELEGRAM_COOLDOWN_SEC", "60"))
+
+    if args.telegram_text_only:
+        send_photo = False
+    else:
+        env_photo = os.environ.get("TELEGRAM_SEND_PHOTO", "1").strip().lower()
+        send_photo = env_photo not in {"0", "false", "no"}
+
+    return TelegramNotifier.from_settings(token, chat_id, cooldown, send_photo)
 
 
 def main(argv: list[str] | None = None) -> int:
     global _broadcaster
     args = parse_args(argv)
     motion_enabled = not args.no_motion
+    telegram = build_telegram_notifier(args)
 
     _broadcaster = MjpegBroadcaster(
         camera_index=args.camera,
@@ -263,6 +320,7 @@ def main(argv: list[str] | None = None) -> int:
         target_fps=args.fps,
         motion_enabled=motion_enabled,
         min_motion_area=args.min_motion_area,
+        telegram=telegram,
     )
     _broadcaster.start()
     time.sleep(0.5)
@@ -273,6 +331,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Kualitas JPEG: {args.quality}")
     print(f"  Target FPS   : {args.fps}")
     print(f"  Deteksi gerak: {'aktif' if motion_enabled else 'nonaktif'}")
+    if telegram is not None:
+        mode = "foto + teks" if telegram.send_photo else "teks saja"
+        print(f"  Telegram     : aktif ({mode}, cooldown {telegram.cooldown_sec:.0f}s)")
+    else:
+        print("  Telegram     : nonaktif (lihat telegram.env.example)")
     print(f"  Listen       : http://{args.host}:{args.port}/")
     print("  Dari LAN     : http://<IP-perangkat>:{}/".format(args.port))
     print("  Contoh       : http://10.45.2.103:{}/".format(args.port))
