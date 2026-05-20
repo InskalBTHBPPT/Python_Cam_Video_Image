@@ -17,6 +17,7 @@ Cocok untuk **Ubuntu 24.04 LTS** dan **Raspberry Pi** dengan webcam USB (V4L2).
 | Resolusi default | 640×320 (MJPG), optimal untuk LAN/WiFi |
 | Kualitas JPEG default | 50 |
 | Target FPS default | 15 |
+| Deteksi gerakan | **Aktif** (kotak hijau + teks `MOTION DETECTED`) |
 | Rekaman ke disk | **Tidak** |
 
 ---
@@ -41,6 +42,7 @@ Semua path relatif terhadap folder **`Python_Cam_Live_Streaming`**:
 |---------------|------------|
 | `livestream/` | Lingkungan virtual Python (venv) — dibuat Anda, jangan di-commit |
 | `live_stream_mjpeg.py` | Server HTTP streaming |
+| `motion_detector.py` | Deteksi gerakan (referensi `Level_3_Deteksi_Gerakan.py`) |
 | `v4l2_camera.py` | Konfigurasi kamera Linux/Pi |
 | `requirements.txt` | Dependensi pip (OpenCV + Flask) |
 | `user-manual.md` | Dokumen ini |
@@ -214,11 +216,14 @@ python live_stream_mjpeg.py
 | `--quality` | `50` | Kualitas JPEG 1–100 (lebih kecil = lebih ringan) |
 | `--fps` | `15` | Target frame per detik |
 | `--no-mirror` | — | Matikan cermin horizontal |
+| `--no-motion` | — | Matikan deteksi gerakan (default: aktif) |
+| `--min-motion-area` | otomatis | Luas kontur minimum (piksel²) |
 
 Contoh:
 
 ```bash
 python live_stream_mjpeg.py --port 5000 --camera 0
+python live_stream_mjpeg.py --no-motion
 ```
 
 ### 6.3 Pengaturan performa
@@ -249,7 +254,41 @@ python live_stream_mjpeg.py --width 640 --height 480 --quality 60 --fps 20
 
 **Tips:** Satu tab browser saja; kabel Ethernet di Pi lebih stabil daripada WiFi.
 
-### 6.4 Menonton stream
+### 6.4 Deteksi gerakan
+
+Algoritma sama dengan `Level_3_Deteksi_Gerakan.py`:
+
+1. Konversi ke grayscale + Gaussian blur  
+2. `absdiff` dengan frame sebelumnya  
+3. Threshold + dilate → kontur  
+4. Kotak hijau pada area gerakan; teks **MOTION DETECTED** jika ada gerakan  
+
+**Default aktif** — cukup jalankan `python live_stream_mjpeg.py`. Di browser:
+
+- Badge status di atas video (polling `/api/motion`)
+- Overlay **MOTION ON** di pojok bawah stream
+- Kotak hijau + **MOTION DETECTED** saat ada gerakan
+
+Matikan deteksi (stream lebih ringan):
+
+```bash
+python live_stream_mjpeg.py --no-motion
+```
+
+Sesuaikan sensitivitas — nilai lebih **kecil** = lebih sensitif:
+
+```bash
+python live_stream_mjpeg.py --min-motion-area 400
+```
+
+API status JSON (untuk integrasi):
+
+```text
+GET http://10.45.2.103:8080/api/motion
+→ {"enabled": true, "detected": false}
+```
+
+### 6.5 Menonton stream
 
 | Cara | URL |
 |------|-----|
@@ -258,7 +297,7 @@ python live_stream_mjpeg.py --width 640 --height 480 --quality 60 --fps 20
 
 VLC: *Media → Open Network Stream* → URL `video_feed` di atas.
 
-### 6.5 Hentikan server
+### 6.6 Hentikan server
 
 Di terminal Pi: **Ctrl+C**.
 
@@ -364,6 +403,16 @@ python live_stream_mjpeg.py --port 8081
 2. Pastikan hanya **satu tab** browser yang membuka stream.
 3. Coba **kabel Ethernet** di Pi jika memungkinkan (lebih stabil daripada WiFi).
 4. Tutup skrip lain yang memakai kamera (`GUI_Camera_App.py`, dll.).
+
+### Deteksi gerakan terlalu sensitif / banyak false alarm
+
+Turunkan sensitivitas dengan **menaikkan** `--min-motion-area`:
+
+```bash
+python live_stream_mjpeg.py --min-motion-area 900
+```
+
+Atau matikan sementara: `--no-motion`.
 
 ### `pip install` gagal di Raspberry Pi
 
