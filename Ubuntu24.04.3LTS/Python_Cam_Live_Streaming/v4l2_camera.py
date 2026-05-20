@@ -5,7 +5,7 @@ import cv2
 
 # MJPG + resolusi tetap menghindari gambar "terpotong" / bagian atas-bawah tertukar (buffer YUYV).
 DEFAULT_WIDTH = 640
-DEFAULT_HEIGHT = 480
+DEFAULT_HEIGHT = 320
 WARMUP_FRAMES = 10
 
 

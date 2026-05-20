@@ -14,10 +14,9 @@ Cocok untuk **Ubuntu 24.04 LTS** dan **Raspberry Pi** dengan webcam USB (V4L2).
 | Protokol | HTTP + MJPEG (`multipart/x-mixed-replace`) |
 | Port default | `8080` |
 | URL contoh (Pi di LAN) | `http://10.45.2.103:8080/` |
-| Resolusi default | 640×480 (MJPG), lewat `v4l2_camera.py` |
-| Resolusi disarankan (LAN/WiFi) | 640×320 — lihat §6.4 |
-| Kualitas JPEG default | 60 |
-| Target FPS default | 20 |
+| Resolusi default | 640×320 (MJPG), optimal untuk LAN/WiFi |
+| Kualitas JPEG default | 50 |
+| Target FPS default | 15 |
 | Rekaman ke disk | **Tidak** |
 
 ---
@@ -211,9 +210,9 @@ python live_stream_mjpeg.py
 | `--port` | `8080` | Port HTTP |
 | `--camera` | `0` | Indeks V4L2 (`/dev/video0` → 0) |
 | `--width` | `640` | Lebar frame (piksel) |
-| `--height` | `480` | Tinggi frame (piksel) |
-| `--quality` | `60` | Kualitas JPEG 1–100 (lebih kecil = lebih ringan) |
-| `--fps` | `20` | Target frame per detik |
+| `--height` | `320` | Tinggi frame (piksel) |
+| `--quality` | `50` | Kualitas JPEG 1–100 (lebih kecil = lebih ringan) |
+| `--fps` | `15` | Target frame per detik |
 | `--no-mirror` | — | Matikan cermin horizontal |
 
 Contoh:
@@ -222,30 +221,30 @@ Contoh:
 python live_stream_mjpeg.py --port 5000 --camera 0
 ```
 
-### 6.3 Pengaturan performa (disarankan untuk LAN / WiFi)
+### 6.3 Pengaturan performa
 
-Jika stream dari PC lain terasa **lambat, putus-putus, atau seperti slow motion**, turunkan resolusi, kualitas JPEG, dan FPS. Pengaturan berikut sudah **terbukti lancar tanpa lag** di Raspberry Pi lewat WiFi:
+Default skrip sudah di-set untuk **LAN/WiFi tanpa lag** (640×320, kualitas 50, 15 fps). Cukup jalankan:
+
+```bash
+python live_stream_mjpeg.py
+```
+
+Setara dengan:
 
 ```bash
 python live_stream_mjpeg.py --width 640 --height 320 --quality 50 --fps 15
 ```
 
-| Opsi | Nilai | Alasan |
-|------|-------|--------|
-| `--width 640 --height 320` | 640×320 | Resolusi lebih kecil → transfer lebih cepat |
-| `--quality 50` | JPEG 50% | Ukuran file lebih kecil |
-| `--fps 15` | 15 fps | Beban CPU & WiFi lebih ringan |
-
-Jika masih kurang lancar:
+Jika masih kurang lancar, turunkan lagi:
 
 ```bash
 python live_stream_mjpeg.py --width 640 --height 320 --quality 40 --fps 12
 ```
 
-Jika sudah lancar dan ingin sedikit lebih tajam:
+Jika ingin gambar lebih tajam dan jaringan kuat:
 
 ```bash
-python live_stream_mjpeg.py --width 640 --height 320 --quality 60 --fps 18
+python live_stream_mjpeg.py --width 640 --height 480 --quality 60 --fps 20
 ```
 
 **Tips:** Satu tab browser saja; kabel Ethernet di Pi lebih stabil daripada WiFi.
@@ -356,10 +355,10 @@ python live_stream_mjpeg.py --port 8081
 
 ### Stream lambat / putus-putus / tidak real-time
 
-1. Gunakan pengaturan performa (§6.3):
+1. Default sudah optimal; jika masih lag, turunkan (§6.3):
 
    ```bash
-   python live_stream_mjpeg.py --width 640 --height 320 --quality 50 --fps 15
+   python live_stream_mjpeg.py --quality 40 --fps 12
    ```
 
 2. Pastikan hanya **satu tab** browser yang membuka stream.
@@ -394,11 +393,8 @@ python3 -m venv livestream
 source livestream/bin/activate
 pip install -r requirements.txt
 
-# Jalankan (default)
+# Jalankan (default 640×320, quality 50, 15 fps)
 python live_stream_mjpeg.py
-
-# Jalankan — lancar di LAN/WiFi (disarankan)
-python live_stream_mjpeg.py --width 640 --height 320 --quality 50 --fps 15
 
 # Browser (ganti IP)
 # http://10.45.2.103:8080/
