@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
+import time
 
 import cv2
 from flask import Flask, Response
@@ -19,41 +21,100 @@ from v4l2_camera import open_video_capture
 CAMERA_INDEX = 0
 HOST = "0.0.0.0"
 PORT = 8080
-JPEG_QUALITY = 80
+FRAME_WIDTH = 640
+FRAME_HEIGHT = 480
+JPEG_QUALITY = 60
+TARGET_FPS = 20
 MIRROR_HORIZONTAL = True
 
 app = Flask(__name__)
-_camera_index = CAMERA_INDEX
 
 
-def frame_generator():
-    cap = open_video_capture(_camera_index)
-    if not cap.isOpened():
-        raise RuntimeError(
-            f"Kamera tidak terbuka (index {_camera_index}). "
-            "Cek: v4l2-ctl --list-devices"
-        )
-    try:
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                continue
-            if MIRROR_HORIZONTAL:
-                frame = cv2.flip(frame, 1)
-            ok, buf = cv2.imencode(
-                ".jpg",
-                frame,
-                [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY],
+class MjpegBroadcaster:
+    """Satu thread baca kamera; semua klien dapat frame JPEG terbaru."""
+
+    def __init__(
+        self,
+        camera_index: int,
+        width: int,
+        height: int,
+        quality: int,
+        mirror: bool,
+        target_fps: float,
+    ) -> None:
+        self._camera_index = camera_index
+        self._width = width
+        self._height = height
+        self._quality = quality
+        self._mirror = mirror
+        self._target_fps = target_fps
+        self._lock = threading.Lock()
+        self._latest_chunk: bytes | None = None
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._capture_loop, daemon=True)
+        self._thread.start()
+
+    def _capture_loop(self) -> None:
+        cap = open_video_capture(self._camera_index, self._width, self._height)
+        if not cap.isOpened():
+            raise RuntimeError(
+                f"Kamera tidak terbuka (index {self._camera_index}). "
+                "Cek: v4l2-ctl --list-devices"
             )
-            if not ok:
+
+        min_interval = 1.0 / self._target_fps if self._target_fps > 0 else 0.0
+        try:
+            while not self._stop.is_set():
+                loop_start = time.monotonic()
+
+                # Buang frame lama di buffer driver agar tidak terasa slow-motion.
+                cap.grab()
+                ret, frame = cap.retrieve()
+                if not ret:
+                    continue
+
+                if self._mirror:
+                    frame = cv2.flip(frame, 1)
+                ok, buf = cv2.imencode(
+                    ".jpg",
+                    frame,
+                    [int(cv2.IMWRITE_JPEG_QUALITY), self._quality],
+                )
+                if not ok:
+                    continue
+
+                chunk = buf.tobytes()
+                with self._lock:
+                    self._latest_chunk = chunk
+
+                if min_interval:
+                    elapsed = time.monotonic() - loop_start
+                    time.sleep(max(0.0, min_interval - elapsed))
+        finally:
+            cap.release()
+
+    def frame_generator(self):
+        interval = 1.0 / self._target_fps if self._target_fps > 0 else 0.033
+        while True:
+            with self._lock:
+                chunk = self._latest_chunk
+            if chunk is None:
+                time.sleep(0.01)
                 continue
-            chunk = buf.tobytes()
             yield (
                 b"--frame\r\n"
                 b"Content-Type: image/jpeg\r\n\r\n" + chunk + b"\r\n"
             )
-    finally:
-        cap.release()
+            time.sleep(interval)
+
+
+_broadcaster: MjpegBroadcaster | None = None
 
 
 @app.route("/")
@@ -81,8 +142,10 @@ def index():
 
 @app.route("/video_feed")
 def video_feed():
+    if _broadcaster is None:
+        return Response("Server belum siap", status=503)
     return Response(
-        frame_generator(),
+        _broadcaster.frame_generator(),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
@@ -108,16 +171,58 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=CAMERA_INDEX,
         help=f"Indeks kamera V4L2 (default: {CAMERA_INDEX})",
     )
+    parser.add_argument(
+        "--width",
+        type=int,
+        default=FRAME_WIDTH,
+        help=f"Lebar frame (default: {FRAME_WIDTH})",
+    )
+    parser.add_argument(
+        "--height",
+        type=int,
+        default=FRAME_HEIGHT,
+        help=f"Tinggi frame (default: {FRAME_HEIGHT})",
+    )
+    parser.add_argument(
+        "--quality",
+        type=int,
+        default=JPEG_QUALITY,
+        help=f"Kualitas JPEG 1-100 (default: {JPEG_QUALITY})",
+    )
+    parser.add_argument(
+        "--fps",
+        type=float,
+        default=TARGET_FPS,
+        help=f"Target FPS stream (default: {TARGET_FPS})",
+    )
+    parser.add_argument(
+        "--no-mirror",
+        action="store_true",
+        help="Matikan cermin horizontal",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
-    global _camera_index
+    global _broadcaster
     args = parse_args(argv)
-    _camera_index = args.camera
+
+    _broadcaster = MjpegBroadcaster(
+        camera_index=args.camera,
+        width=args.width,
+        height=args.height,
+        quality=args.quality,
+        mirror=not args.no_mirror,
+        target_fps=args.fps,
+    )
+    _broadcaster.start()
+    time.sleep(0.5)
 
     print("Live stream MJPEG — tidak merekam video ke file.")
     print(f"  Kamera index : {args.camera}")
+    print(f"  Resolusi     : {args.width}x{args.height}")
+    print(f"  Kualitas JPEG: {args.quality}")
+    print(f"  Target FPS   : {args.fps}")
     print(f"  Listen       : http://{args.host}:{args.port}/")
     print("  Dari LAN     : http://<IP-perangkat>:{}/".format(args.port))
     print("  Contoh       : http://10.45.2.103:{}/".format(args.port))
