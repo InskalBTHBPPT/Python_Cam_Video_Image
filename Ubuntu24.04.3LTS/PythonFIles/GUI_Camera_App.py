@@ -19,7 +19,32 @@ from urllib.request import urlretrieve
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 os.environ.setdefault("GLOG_minloglevel", "2")
 
+
+def _configure_qt_plugin_path():
+    """
+    opencv-python membawa plugin Qt di cv2/qt/plugins — bentrok dengan PySide6.
+    Pakai plugin Qt dari PySide6; butuh libxcb-cursor0 di sistem (apt).
+    """
+    os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+
+    try:
+        import PySide6
+    except ModuleNotFoundError:
+        return
+
+    plugins_root = Path(PySide6.__file__).resolve().parent / "Qt" / "plugins"
+    if plugins_root.is_dir():
+        os.environ["QT_PLUGIN_PATH"] = str(plugins_root)
+
+
+_configure_qt_plugin_path()
+
 import cv2
+
+# cv2 dapat mengatur ulang path plugin Qt saat impor
+os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+_configure_qt_plugin_path()
+
 import numpy as np
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
@@ -101,11 +126,36 @@ YOLO_MODEL_NAME = "yolo11n.pt"
 YOLO_MODEL_PATH = MODEL_DIR / YOLO_MODEL_NAME
 
 
-def open_video_capture(camera_index: int) -> cv2.VideoCapture:
-    """Buka kamera dengan backend yang sesuai OS."""
-    if platform.system() == "Linux":
-        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
-    return cv2.VideoCapture(camera_index)
+from detection_backends import BACKEND_CHOICES, YOLO_IMGSZ, create_backend
+from v4l2_camera import open_video_capture
+
+
+def check_pytorch_for_arm() -> tuple[bool, str]:
+    """Pastikan torch CPU cocok di aarch64 (hindari +cu / Illegal instruction)."""
+    if platform.machine() != "aarch64":
+        return True, ""
+
+    try:
+        import torch
+    except ModuleNotFoundError:
+        return (
+            False,
+            "PyTorch belum terpasang.\n\n"
+            "Di Raspberry Pi jalankan:\n"
+            "  pip install -r requirements-raspberrypi.txt\n"
+            "atau: ./fix_pytorch_raspi.sh",
+        )
+
+    version = torch.__version__
+    if "+cu" in version or version.startswith(("2.11", "2.12")):
+        return (
+            False,
+            f"PyTorch {version} tidak cocok untuk Raspberry Pi.\n\n"
+            "Jalankan di folder PythonFIles:\n"
+            "  ./fix_pytorch_raspi.sh",
+        )
+
+    return True, ""
 
 
 class CameraApp(QMainWindow):
@@ -124,8 +174,8 @@ class CameraApp(QMainWindow):
         self.min_motion_area = 1000
         self.hand_landmarker = None
         self.hand_start_time = None
-        self.yolo_model = None
-        self.yolo_model_path = None
+        self.object_detector = None
+        self.object_detector_backend_id = None
         self.capture_dir = APP_ROOT / "captures"
         self.recording_dir = APP_ROOT / "recordings"
         self.capture_dir.mkdir(exist_ok=True)
@@ -142,7 +192,7 @@ class CameraApp(QMainWindow):
                 "Level 3 - Deteksi Gerakan",
                 "Level 4 - Deteksi Warna",
                 "Level 6 - Deteksi Tangan/Jari",
-                "Level 7 - Deteksi Objek YOLO",
+                "Level 7 - Deteksi Objek",
             ]
         )
 
@@ -152,6 +202,10 @@ class CameraApp(QMainWindow):
 
         self.color_combo = QComboBox()
         self.color_combo.addItems(["semua", "merah", "hijau", "biru"])
+
+        self.obj_backend_combo = QComboBox()
+        for backend_id, label in BACKEND_CHOICES:
+            self.obj_backend_combo.addItem(label, backend_id)
 
         self.yolo_model_combo = QComboBox()
         self.refresh_yolo_model_combo()
@@ -186,6 +240,7 @@ class CameraApp(QMainWindow):
         self.capture_button.clicked.connect(self.save_capture_image)
         self.record_button.clicked.connect(self.toggle_recording)
         self.level_combo.currentTextChanged.connect(self.update_level_controls)
+        self.obj_backend_combo.currentIndexChanged.connect(self.on_object_backend_changed)
         self.yolo_model_combo.currentTextChanged.connect(self.on_yolo_model_changed)
 
         camera_group = QGroupBox("Camera Settings")
@@ -201,18 +256,21 @@ class CameraApp(QMainWindow):
         self.detection_hint_label = QLabel("Tidak ada pengaturan tambahan untuk level ini.")
         self.detection_hint_label.setObjectName("hintLabel")
         self.color_label = QLabel("Warna:")
+        self.obj_backend_label = QLabel("Mesin deteksi:")
         self.yolo_model_label = QLabel("Model YOLO:")
-        self.yolo_object_label = QLabel("Objek YOLO:")
-        self.yolo_confidence_label = QLabel("Confidence YOLO:")
+        self.yolo_object_label = QLabel("Filter objek:")
+        self.yolo_confidence_label = QLabel("Confidence:")
         detection_layout.addWidget(self.detection_hint_label, 0, 0, 1, 4)
         detection_layout.addWidget(self.color_label, 1, 0)
         detection_layout.addWidget(self.color_combo, 1, 1)
-        detection_layout.addWidget(self.yolo_model_label, 1, 0)
-        detection_layout.addWidget(self.yolo_model_combo, 1, 1)
-        detection_layout.addWidget(self.yolo_object_label, 2, 0)
-        detection_layout.addWidget(self.yolo_object_combo, 2, 1)
-        detection_layout.addWidget(self.yolo_confidence_label, 2, 2)
-        detection_layout.addWidget(self.yolo_confidence_combo, 2, 3)
+        detection_layout.addWidget(self.obj_backend_label, 1, 0)
+        detection_layout.addWidget(self.obj_backend_combo, 1, 1, 1, 3)
+        detection_layout.addWidget(self.yolo_model_label, 2, 0)
+        detection_layout.addWidget(self.yolo_model_combo, 2, 1)
+        detection_layout.addWidget(self.yolo_object_label, 3, 0)
+        detection_layout.addWidget(self.yolo_object_combo, 3, 1)
+        detection_layout.addWidget(self.yolo_confidence_label, 3, 2)
+        detection_layout.addWidget(self.yolo_confidence_combo, 3, 3)
         detection_group.setLayout(detection_layout)
 
         action_group = QGroupBox("Actions")
@@ -239,7 +297,7 @@ class CameraApp(QMainWindow):
         self.setCentralWidget(container)
         self.apply_modern_style()
         self.update_level_controls()
-        self.load_selected_yolo_model(show_errors=False)
+        self.load_object_detector(show_errors=False)
 
     def apply_modern_style(self):
         self.setStyleSheet(
@@ -359,11 +417,20 @@ class CameraApp(QMainWindow):
 
         return MODEL_DIR / selected_model
 
+    def on_object_backend_changed(self):
+        if self.cap is not None:
+            return
+
+        self.load_object_detector(show_errors=True)
+        self.update_level_controls()
+
     def on_yolo_model_changed(self):
         if self.cap is not None:
             return
 
-        self.load_selected_yolo_model(show_errors=True)
+        backend_id = self.get_selected_backend_id()
+        if backend_id in ("yolo", "ncnn"):
+            self.load_object_detector(show_errors=True)
         self.update_level_controls()
 
     def update_level_controls(self):
@@ -376,9 +443,16 @@ class CameraApp(QMainWindow):
         self.color_label.setVisible(is_level_4)
         self.color_combo.setVisible(is_level_4)
         self.color_combo.setEnabled(is_level_4)
-        self.yolo_model_label.setVisible(is_level_7)
-        self.yolo_model_combo.setVisible(is_level_7)
-        self.yolo_model_combo.setEnabled(is_level_7 and is_camera_stopped)
+
+        backend_id = self.get_selected_backend_id()
+        uses_yolo_weights = backend_id in ("yolo", "ncnn")
+
+        self.obj_backend_label.setVisible(is_level_7)
+        self.obj_backend_combo.setVisible(is_level_7)
+        self.obj_backend_combo.setEnabled(is_level_7 and is_camera_stopped)
+        self.yolo_model_label.setVisible(is_level_7 and uses_yolo_weights)
+        self.yolo_model_combo.setVisible(is_level_7 and uses_yolo_weights)
+        self.yolo_model_combo.setEnabled(is_level_7 and uses_yolo_weights and is_camera_stopped)
         self.yolo_object_label.setVisible(is_level_7)
         self.yolo_object_combo.setVisible(is_level_7)
         self.yolo_object_combo.setEnabled(is_level_7)
@@ -403,7 +477,7 @@ class CameraApp(QMainWindow):
             self.cap = None
             return
 
-        if selected_level.startswith("Level 7") and not self.setup_yolo_model():
+        if selected_level.startswith("Level 7") and not self.setup_object_detector():
             self.cap.release()
             self.cap = None
             return
@@ -649,7 +723,9 @@ class CameraApp(QMainWindow):
             QMessageBox.warning(
                 self,
                 "MediaPipe belum tersedia",
-                "Install MediaPipe terlebih dahulu:\n\npip install mediapipe",
+                "Install MediaPipe di venv usbcamtest:\n\n"
+                "pip install -r requirements-raspberrypi.txt\n"
+                "(atau requirements.txt di PC)",
             )
             return False
 
@@ -784,110 +860,103 @@ class CameraApp(QMainWindow):
         )
         return frame
 
-    def setup_yolo_model(self):
-        return self.load_selected_yolo_model(show_errors=True)
+    def get_selected_backend_id(self):
+        backend_id = self.obj_backend_combo.currentData()
+        return backend_id or "yolo"
 
-    def load_selected_yolo_model(self, show_errors):
-        selected_model_path = self.get_selected_yolo_model_path()
+    def get_selected_yolo_model_name(self):
+        selected_model = self.yolo_model_combo.currentData()
+        return selected_model or YOLO_MODEL_NAME
 
-        if self.yolo_model is not None and self.yolo_model_path == selected_model_path:
-            return True
+    def release_object_detector(self):
+        if self.object_detector is not None:
+            self.object_detector.release()
+        self.object_detector = None
+        self.object_detector_backend_id = None
 
-        if not ULTRALYTICS_AVAILABLE:
-            if show_errors:
-                QMessageBox.warning(
-                    self,
-                    "Ultralytics belum tersedia",
-                    "Install Ultralytics terlebih dahulu:\n\npip install ultralytics",
-                )
-            return False
+    def setup_object_detector(self):
+        return self.load_object_detector(show_errors=True)
 
-        self.status_label.setText(f"Status: Memuat model YOLO {selected_model_path.name}...")
-        QApplication.processEvents()
+    def load_object_detector(self, show_errors):
+        backend_id = self.get_selected_backend_id()
+        model_name = self.get_selected_yolo_model_name()
+
+        if self.object_detector is not None and self.object_detector_backend_id == backend_id:
+            if backend_id in ("mobilenet", "mediapipe"):
+                return True
+            if getattr(self.object_detector, "_loaded_name", None) == model_name:
+                return True
+
+        self.release_object_detector()
         self.migrate_yolo_model_to_models_dir()
-        selected_model_path = self.get_selected_yolo_model_path()
 
-        try:
-            model_source = selected_model_path if selected_model_path.exists() else selected_model_path.name
-            self.yolo_model = YOLO(str(model_source))
-            self.yolo_model_path = selected_model_path
-            self.migrate_yolo_model_to_models_dir()
-            self.refresh_yolo_model_combo()
-        except Exception as error:
-            if show_errors:
-                QMessageBox.warning(
-                    self,
-                    "YOLO gagal dimuat",
-                    f"Model YOLO gagal dimuat:\n{error}",
-                )
+        backend = create_backend(
+            backend_id,
+            yolo_class=YOLO if ULTRALYTICS_AVAILABLE else None,
+            torch_check=check_pytorch_for_arm,
+            mp_module=mp if MEDIAPIPE_AVAILABLE else None,
+            vision_module=vision if MEDIAPIPE_AVAILABLE else None,
+            python_module=python if MEDIAPIPE_AVAILABLE else None,
+        )
 
-            self.yolo_model = None
-            self.yolo_model_path = None
+        self.status_label.setText(f"Status: Memuat {backend.display_name}...")
+        QApplication.processEvents()
+
+        ok, error_message = backend.load(MODEL_DIR, model_name)
+        if not ok:
+            if show_errors and error_message:
+                QMessageBox.warning(self, "Deteksi objek gagal dimuat", error_message)
             return False
 
-        self.populate_yolo_object_combo()
-        self.status_label.setText(f"Status: Model YOLO aktif: {selected_model_path.name}")
+        self.object_detector = backend
+        self.object_detector_backend_id = backend_id
+        self.populate_object_class_combo()
+        self.refresh_yolo_model_combo()
+
+        if backend_id in ("yolo", "ncnn"):
+            self.status_label.setText(f"Status: {backend.display_name} — {model_name}")
+        else:
+            self.status_label.setText(f"Status: {backend.display_name} aktif")
         return True
 
-    def populate_yolo_object_combo(self):
+    def populate_object_class_combo(self):
         current_text = self.yolo_object_combo.currentText()
         self.yolo_object_combo.clear()
         self.yolo_object_combo.addItem("semua")
 
-        for class_id in sorted(self.yolo_model.names):
-            self.yolo_object_combo.addItem(self.yolo_model.names[class_id])
+        if self.object_detector is not None:
+            for name in self.object_detector.class_names():
+                self.yolo_object_combo.addItem(name)
 
         if current_text:
             index = self.yolo_object_combo.findText(current_text)
-
             if index >= 0:
                 self.yolo_object_combo.setCurrentIndex(index)
 
-    def get_selected_yolo_class_id(self):
-        selected_object = self.yolo_object_combo.currentText()
-
-        if selected_object == "semua":
+    def get_selected_object_filter(self):
+        selected = self.yolo_object_combo.currentText()
+        if selected == "semua":
             return None
+        return selected
 
-        for class_id, object_name in self.yolo_model.names.items():
-            if object_name == selected_object:
-                return class_id
-
-        return None
-
-    def apply_yolo_detection(self, frame):
-        if self.yolo_model is None:
+    def apply_object_detection(self, frame):
+        if self.object_detector is None:
             return frame
 
-        confidence_threshold = float(self.yolo_confidence_combo.currentText())
-        selected_class_id = self.get_selected_yolo_class_id()
-        predict_options = {
-            "conf": confidence_threshold,
-            "verbose": False,
-        }
+        confidence = float(self.yolo_confidence_combo.currentText())
+        class_filter = self.get_selected_object_filter()
+        result = self.object_detector.detect(frame, confidence, class_filter)
 
-        if selected_class_id is not None:
-            predict_options["classes"] = [selected_class_id]
-
-        results = self.yolo_model.predict(frame, **predict_options)
-        result = results[0]
-        annotated_frame = result.plot()
-
-        object_count = 0
-        if result.boxes is not None:
-            object_count = len(result.boxes)
-
-        selected_object = self.yolo_object_combo.currentText()
         cv2.putText(
-            annotated_frame,
-            f"YOLO: {selected_object} | Objek: {object_count} | Conf: {confidence_threshold}",
+            result.frame,
+            result.summary,
             (20, 40),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (255, 255, 255),
             2,
         )
-        return annotated_frame
+        return result.frame
 
     def update_frame(self):
         if self.cap is None:
@@ -914,7 +983,7 @@ class CameraApp(QMainWindow):
             display_frame = self.apply_hand_detection(display_frame)
         elif selected_level.startswith("Level 7"):
             self.previous_gray = None
-            display_frame = self.apply_yolo_detection(display_frame)
+            display_frame = self.apply_object_detection(display_frame)
         else:
             self.previous_gray = None
 
@@ -932,7 +1001,9 @@ class CameraApp(QMainWindow):
             )
             self.video_writer.write(display_frame)
 
-        rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+        rgb_frame = np.ascontiguousarray(
+            cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+        )
         height, width, channel = rgb_frame.shape
         bytes_per_line = channel * width
 
@@ -942,7 +1013,7 @@ class CameraApp(QMainWindow):
             height,
             bytes_per_line,
             QImage.Format_RGB888,
-        ).copy()
+        )
 
         pixmap = QPixmap.fromImage(image)
         scaled_pixmap = pixmap.scaled(
@@ -958,6 +1029,7 @@ class CameraApp(QMainWindow):
 
 
 if __name__ == "__main__":
+    _configure_qt_plugin_path()
     app = QApplication(sys.argv)
     window = CameraApp()
     window.show()

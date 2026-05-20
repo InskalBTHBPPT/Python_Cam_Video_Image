@@ -1,6 +1,11 @@
-# Ubuntu 24.04 / Raspberry Pi — Python 3.12 disarankan (sesuai repo Ubuntu)
-# Buat venv: python3 -m venv .venv && source .venv/bin/activate
-# Pasang dependensi sistem (contoh): sudo apt install python3-pip python3-venv libgl1 libglib2.0-0
+# Dependensi umum (Level 1–6, GUI). Python 3.10+.
+#
+# Raspberry Pi 4 (aarch64) + Level 7 / YOLO:
+#   JANGAN hanya file ini — pakai requirements-raspberrypi.txt atau skrip fix_pytorch_raspi.sh
+#   (lihat user-manual.md §4.2).
+#
+# PC Ubuntu / x86_64 (tanpa masalah Illegal instruction):
+#   pip install -r requirements.txt
 
 opencv-python>=4.8.0
 numpy>=1.24.0

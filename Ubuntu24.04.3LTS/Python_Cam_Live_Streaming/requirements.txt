@@ -1,0 +1,5 @@
+# Live streaming MJPEG — Python 3.10+
+# Hanya untuk streaming; tidak ada rekaman, GUI, atau YOLO.
+
+opencv-python>=4.8.0
+flask>=3.0.0

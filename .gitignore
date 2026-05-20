@@ -1,6 +1,12 @@
+__pycache__/
+*.pyc
 captures/
 recordings/
 *.pt
 models/
 usbcamtest/
-Ubuntu24.04.3LTS/Python_Cam_Live_Streaming/telegram.env
+livestream/
+.env
+telegram.env
+**/.env
+**/telegram.env
